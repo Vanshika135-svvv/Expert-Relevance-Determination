@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus RAC | Expert Intelligence</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.score-bar-fill').forEach(function(el) {
+                el.style.setProperty('--score-width', el.dataset.score + '%');
+            });
+        });
+    </script>
+</head>
+<body>
+    <header>
+        <div class="nav-container">
+            <div class="logo">NEXUS<span>RAC</span></div>
+            <div class="tagline">Next-Gen Expert Intelligence</div>
+        </div>
+    </header>
+
+    
+
+    <main class="glass-container">
+        <section class="hero-section">
+            <h1>Determine <span>Expert Relevance</span></h1>
+            <p>Deploying AI to bridge the gap between candidate expertise and board subjects.</p>
+            
+            <form action="/search" method="POST" class="modern-form">
+                <div class="input-group">
+                    <input type="text" name="candidate_name" placeholder="Search candidate name (e.g. Aarav)..." required>
+                    <button type="submit">Match Now</button>
+                </div>
+            </form>
+        </section>
+
+        {% if error %}
+            <div class="error-toast">{{ error }}</div>
+        {% endif %}
+
+        {% if experts %}
+        <section class="results-section">
+            <h3>Top Matches for <span>@{{ candidate }}</span></h3>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Expert</th>
+                            <th>Domain</th>
+                            <th>Exp</th>
+                            <th>Relevancy</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for expert in experts %}
+                        <tr>
+                            <td class="expert-name">{{ expert.ExpertName }}</td>
+                            <td><span class="badge">{{ expert.ExpertSubject }}</span></td>
+                            <td>{{ expert['Experience (Years)'] }}y</td>
+                            <td class="score-cell">
+                                <div class="score-bar-bg">
+                                    <div class="score-bar-fill" data-score="{{ expert.Relevancy_Score | safe }}"></div>
+                                </div>
+                                <span>{{ expert.Relevancy_Score }}%</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        {% endif %}
+    </main>
+
+    <footer>
+        <p>Built by <span>Team Aegis AI</span> // Project 2026</p>
+    </footer>
+</body>
+</html>

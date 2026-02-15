@@ -1,0 +1,201 @@
+Candidate_ID,Name,Course,Experience_Years,Primary_Skill,Certification,Score
+TR001,Candidate_1,Artificial Intelligence,1,Python,AI Foundation,66
+TR002,Candidate_2,Artificial Intelligence,2,Machine Learning,Coursera ML,67
+TR003,Candidate_3,Artificial Intelligence,3,Deep Learning,Google AI,68
+TR004,Candidate_4,Artificial Intelligence,4,Computer Vision,IBM AI,69
+TR005,Candidate_5,Artificial Intelligence,5,NLP,MLOps Cert,70
+TR006,Candidate_6,Artificial Intelligence,1,AutoML,Cloud Practitioner,71
+TR007,Candidate_7,Artificial Intelligence,2,AI Ethics,AWS Associate,72
+TR008,Candidate_8,Artificial Intelligence,3,MLOps,Google Cloud,73
+TR009,Candidate_9,Artificial Intelligence,4,Python,Azure Expert,74
+TR010,Candidate_10,Artificial Intelligence,5,Machine Learning,NPTEL,75
+TR011,Candidate_11,Artificial Intelligence,1,Deep Learning,CEH,76
+TR012,Candidate_12,Artificial Intelligence,2,Computer Vision,EC Council,77
+TR013,Candidate_13,Artificial Intelligence,3,NLP,CISSP,78
+TR014,Candidate_14,Artificial Intelligence,4,AutoML,Google Data,79
+TR015,Candidate_15,Artificial Intelligence,5,AI Ethics,DataCamp,80
+TR016,Candidate_16,Artificial Intelligence,1,MLOps,Spark Cert,81
+TR017,Candidate_17,Artificial Intelligence,2,Python,CCNA,82
+TR018,Candidate_18,Artificial Intelligence,3,Machine Learning,ITIL,83
+TR019,Candidate_19,Artificial Intelligence,4,Deep Learning,Web Basics,84
+TR020,Candidate_20,Artificial Intelligence,5,Computer Vision,DevOps Expert,85
+TR021,Candidate_21,Artificial Intelligence,1,NLP,AI Foundation,86
+TR022,Candidate_22,Artificial Intelligence,2,AutoML,Coursera ML,87
+TR023,Candidate_23,Artificial Intelligence,3,AI Ethics,Google AI,88
+TR024,Candidate_24,Artificial Intelligence,4,MLOps,IBM AI,89
+TR025,Candidate_25,Artificial Intelligence,5,Python,MLOps Cert,90
+TR026,Candidate_26,Cloud Computing,1,AWS,Cloud Practitioner,91
+TR027,Candidate_27,Cloud Computing,2,Azure,AWS Associate,92
+TR028,Candidate_28,Cloud Computing,3,Docker,Google Cloud,93
+TR029,Candidate_29,Cloud Computing,4,Kubernetes,Azure Expert,94
+TR030,Candidate_30,Cloud Computing,5,Terraform,NPTEL,95
+TR031,Candidate_31,Cloud Computing,1,CI/CD,CEH,65
+TR032,Candidate_32,Cloud Computing,2,Cloud Security,EC Council,66
+TR033,Candidate_33,Cloud Computing,3,Serverless,CISSP,67
+TR034,Candidate_34,Cloud Computing,4,AWS,Google Data,68
+TR035,Candidate_35,Cloud Computing,5,Azure,DataCamp,69
+TR036,Candidate_36,Cloud Computing,1,Docker,Spark Cert,70
+TR037,Candidate_37,Cloud Computing,2,Kubernetes,CCNA,71
+TR038,Candidate_38,Cloud Computing,3,Terraform,ITIL,72
+TR039,Candidate_39,Cloud Computing,4,CI/CD,Web Basics,73
+TR040,Candidate_40,Cloud Computing,5,Cloud Security,DevOps Expert,74
+TR041,Candidate_41,Cloud Computing,1,Serverless,AI Foundation,75
+TR042,Candidate_42,Cloud Computing,2,AWS,Coursera ML,76
+TR043,Candidate_43,Cloud Computing,3,Azure,Google AI,77
+TR044,Candidate_44,Cloud Computing,4,Docker,IBM AI,78
+TR045,Candidate_45,Cloud Computing,5,Kubernetes,MLOps Cert,79
+TR046,Candidate_46,Cloud Computing,1,Terraform,Cloud Practitioner,80
+TR047,Candidate_47,Cloud Computing,2,CI/CD,AWS Associate,81
+TR048,Candidate_48,Cloud Computing,3,Cloud Security,Google Cloud,82
+TR049,Candidate_49,Cloud Computing,4,Serverless,Azure Expert,83
+TR050,Candidate_50,Cloud Computing,5,AWS,NPTEL,84
+TR051,Candidate_51,Computer Science,1,C Programming,CEH,85
+TR052,Candidate_52,Computer Science,2,Data Structures,EC Council,86
+TR053,Candidate_53,Computer Science,3,Algorithms,CISSP,87
+TR054,Candidate_54,Computer Science,4,Operating Systems,Google Data,88
+TR055,Candidate_55,Computer Science,5,System Design,DataCamp,89
+TR056,Candidate_56,Computer Science,1,DBMS,Spark Cert,90
+TR057,Candidate_57,Computer Science,2,Compiler Design,CCNA,91
+TR058,Candidate_58,Computer Science,3,C Programming,ITIL,92
+TR059,Candidate_59,Computer Science,4,Data Structures,Web Basics,93
+TR060,Candidate_60,Computer Science,5,Algorithms,DevOps Expert,94
+TR061,Candidate_61,Computer Science,1,Operating Systems,AI Foundation,95
+TR062,Candidate_62,Computer Science,2,System Design,Coursera ML,65
+TR063,Candidate_63,Computer Science,3,DBMS,Google AI,66
+TR064,Candidate_64,Computer Science,4,Compiler Design,IBM AI,67
+TR065,Candidate_65,Computer Science,5,C Programming,MLOps Cert,68
+TR066,Candidate_66,Computer Science,1,Data Structures,Cloud Practitioner,69
+TR067,Candidate_67,Computer Science,2,Algorithms,AWS Associate,70
+TR068,Candidate_68,Computer Science,3,Operating Systems,Google Cloud,71
+TR069,Candidate_69,Computer Science,4,System Design,Azure Expert,72
+TR070,Candidate_70,Computer Science,5,DBMS,NPTEL,73
+TR071,Candidate_71,Computer Science,1,Compiler Design,CEH,74
+TR072,Candidate_72,Computer Science,2,C Programming,EC Council,75
+TR073,Candidate_73,Computer Science,3,Data Structures,CISSP,76
+TR074,Candidate_74,Computer Science,4,Algorithms,Google Data,77
+TR075,Candidate_75,Computer Science,5,Operating Systems,DataCamp,78
+TR076,Candidate_76,Cyber Security,1,Network Security,Spark Cert,79
+TR077,Candidate_77,Cyber Security,2,Ethical Hacking,CCNA,80
+TR078,Candidate_78,Cyber Security,3,Penetration Testing,ITIL,81
+TR079,Candidate_79,Cyber Security,4,SIEM,Web Basics,82
+TR080,Candidate_80,Cyber Security,5,Forensics,DevOps Expert,83
+TR081,Candidate_81,Cyber Security,1,Incident Response,AI Foundation,84
+TR082,Candidate_82,Cyber Security,2,Network Security,Coursera ML,85
+TR083,Candidate_83,Cyber Security,3,Ethical Hacking,Google AI,86
+TR084,Candidate_84,Cyber Security,4,Penetration Testing,IBM AI,87
+TR085,Candidate_85,Cyber Security,5,SIEM,MLOps Cert,88
+TR086,Candidate_86,Cyber Security,1,Forensics,Cloud Practitioner,89
+TR087,Candidate_87,Cyber Security,2,Incident Response,AWS Associate,90
+TR088,Candidate_88,Cyber Security,3,Network Security,Google Cloud,91
+TR089,Candidate_89,Cyber Security,4,Ethical Hacking,Azure Expert,92
+TR090,Candidate_90,Cyber Security,5,Penetration Testing,NPTEL,93
+TR091,Candidate_91,Cyber Security,1,SIEM,CEH,94
+TR092,Candidate_92,Cyber Security,2,Forensics,EC Council,95
+TR093,Candidate_93,Cyber Security,3,Incident Response,CISSP,65
+TR094,Candidate_94,Cyber Security,4,Network Security,Google Data,66
+TR095,Candidate_95,Cyber Security,5,Ethical Hacking,DataCamp,67
+TR096,Candidate_96,Cyber Security,1,Penetration Testing,Spark Cert,68
+TR097,Candidate_97,Cyber Security,2,SIEM,CCNA,69
+TR098,Candidate_98,Cyber Security,3,Forensics,ITIL,70
+TR099,Candidate_99,Cyber Security,4,Incident Response,Web Basics,71
+TR100,Candidate_100,Cyber Security,5,Network Security,DevOps Expert,72
+TR101,Candidate_101,Data Analytics,1,Excel,AI Foundation,73
+TR102,Candidate_102,Data Analytics,2,SQL,Coursera ML,74
+TR103,Candidate_103,Data Analytics,3,Power BI,Google AI,75
+TR104,Candidate_104,Data Analytics,4,Tableau,IBM AI,76
+TR105,Candidate_105,Data Analytics,5,Data Visualization,MLOps Cert,77
+TR106,Candidate_106,Data Analytics,1,Business Analytics,Cloud Practitioner,78
+TR107,Candidate_107,Data Analytics,2,Excel,AWS Associate,79
+TR108,Candidate_108,Data Analytics,3,SQL,Google Cloud,80
+TR109,Candidate_109,Data Analytics,4,Power BI,Azure Expert,81
+TR110,Candidate_110,Data Analytics,5,Tableau,NPTEL,82
+TR111,Candidate_111,Data Analytics,1,Data Visualization,CEH,83
+TR112,Candidate_112,Data Analytics,2,Business Analytics,EC Council,84
+TR113,Candidate_113,Data Analytics,3,Excel,CISSP,85
+TR114,Candidate_114,Data Analytics,4,SQL,Google Data,86
+TR115,Candidate_115,Data Analytics,5,Power BI,DataCamp,87
+TR116,Candidate_116,Data Analytics,1,Tableau,Spark Cert,88
+TR117,Candidate_117,Data Analytics,2,Data Visualization,CCNA,89
+TR118,Candidate_118,Data Analytics,3,Business Analytics,ITIL,90
+TR119,Candidate_119,Data Analytics,4,Excel,Web Basics,91
+TR120,Candidate_120,Data Analytics,5,SQL,DevOps Expert,92
+TR121,Candidate_121,Data Analytics,1,Power BI,AI Foundation,93
+TR122,Candidate_122,Data Analytics,2,Tableau,Coursera ML,94
+TR123,Candidate_123,Data Analytics,3,Data Visualization,Google AI,95
+TR124,Candidate_124,Data Analytics,4,Business Analytics,IBM AI,65
+TR125,Candidate_125,Data Analytics,5,Excel,MLOps Cert,66
+TR126,Candidate_126,Data Science,1,Python,Cloud Practitioner,67
+TR127,Candidate_127,Data Science,2,Statistics,AWS Associate,68
+TR128,Candidate_128,Data Science,3,EDA,Google Cloud,69
+TR129,Candidate_129,Data Science,4,Machine Learning,Azure Expert,70
+TR130,Candidate_130,Data Science,5,Big Data,NPTEL,71
+TR131,Candidate_131,Data Science,1,Data Modeling,CEH,72
+TR132,Candidate_132,Data Science,2,Python,EC Council,73
+TR133,Candidate_133,Data Science,3,Statistics,CISSP,74
+TR134,Candidate_134,Data Science,4,EDA,Google Data,75
+TR135,Candidate_135,Data Science,5,Machine Learning,DataCamp,76
+TR136,Candidate_136,Data Science,1,Big Data,Spark Cert,77
+TR137,Candidate_137,Data Science,2,Data Modeling,CCNA,78
+TR138,Candidate_138,Data Science,3,Python,ITIL,79
+TR139,Candidate_139,Data Science,4,Statistics,Web Basics,80
+TR140,Candidate_140,Data Science,5,EDA,DevOps Expert,81
+TR141,Candidate_141,Data Science,1,Machine Learning,AI Foundation,82
+TR142,Candidate_142,Data Science,2,Big Data,Coursera ML,83
+TR143,Candidate_143,Data Science,3,Data Modeling,Google AI,84
+TR144,Candidate_144,Data Science,4,Python,IBM AI,85
+TR145,Candidate_145,Data Science,5,Statistics,MLOps Cert,86
+TR146,Candidate_146,Data Science,1,EDA,Cloud Practitioner,87
+TR147,Candidate_147,Data Science,2,Machine Learning,AWS Associate,88
+TR148,Candidate_148,Data Science,3,Big Data,Google Cloud,89
+TR149,Candidate_149,Data Science,4,Data Modeling,Azure Expert,90
+TR150,Candidate_150,Data Science,5,Python,NPTEL,91
+TR151,Candidate_151,Information Technology,1,IT Support,CEH,92
+TR152,Candidate_152,Information Technology,2,System Admin,EC Council,93
+TR153,Candidate_153,Information Technology,3,Networking,CISSP,94
+TR154,Candidate_154,Information Technology,4,IT Security,Google Data,95
+TR155,Candidate_155,Information Technology,5,Cloud Support,DataCamp,65
+TR156,Candidate_156,Information Technology,1,IT Support,Spark Cert,66
+TR157,Candidate_157,Information Technology,2,System Admin,CCNA,67
+TR158,Candidate_158,Information Technology,3,Networking,ITIL,68
+TR159,Candidate_159,Information Technology,4,IT Security,Web Basics,69
+TR160,Candidate_160,Information Technology,5,Cloud Support,DevOps Expert,70
+TR161,Candidate_161,Information Technology,1,IT Support,AI Foundation,71
+TR162,Candidate_162,Information Technology,2,System Admin,Coursera ML,72
+TR163,Candidate_163,Information Technology,3,Networking,Google AI,73
+TR164,Candidate_164,Information Technology,4,IT Security,IBM AI,74
+TR165,Candidate_165,Information Technology,5,Cloud Support,MLOps Cert,75
+TR166,Candidate_166,Information Technology,1,IT Support,Cloud Practitioner,76
+TR167,Candidate_167,Information Technology,2,System Admin,AWS Associate,77
+TR168,Candidate_168,Information Technology,3,Networking,Google Cloud,78
+TR169,Candidate_169,Information Technology,4,IT Security,Azure Expert,79
+TR170,Candidate_170,Information Technology,5,Cloud Support,NPTEL,80
+TR171,Candidate_171,Information Technology,1,IT Support,CEH,81
+TR172,Candidate_172,Information Technology,2,System Admin,EC Council,82
+TR173,Candidate_173,Information Technology,3,Networking,CISSP,83
+TR174,Candidate_174,Information Technology,4,IT Security,Google Data,84
+TR175,Candidate_175,Information Technology,5,Cloud Support,DataCamp,85
+TR176,Candidate_176,Software Engineering,1,HTML CSS,Spark Cert,86
+TR177,Candidate_177,Software Engineering,2,JavaScript,CCNA,87
+TR178,Candidate_178,Software Engineering,3,Backend Development,ITIL,88
+TR179,Candidate_179,Software Engineering,4,Microservices,Web Basics,89
+TR180,Candidate_180,Software Engineering,5,DevOps,DevOps Expert,90
+TR181,Candidate_181,Software Engineering,1,System Architecture,AI Foundation,91
+TR182,Candidate_182,Software Engineering,2,HTML CSS,Coursera ML,92
+TR183,Candidate_183,Software Engineering,3,JavaScript,Google AI,93
+TR184,Candidate_184,Software Engineering,4,Backend Development,IBM AI,94
+TR185,Candidate_185,Software Engineering,5,Microservices,MLOps Cert,95
+TR186,Candidate_186,Software Engineering,1,DevOps,Cloud Practitioner,65
+TR187,Candidate_187,Software Engineering,2,System Architecture,AWS Associate,66
+TR188,Candidate_188,Software Engineering,3,HTML CSS,Google Cloud,67
+TR189,Candidate_189,Software Engineering,4,JavaScript,Azure Expert,68
+TR190,Candidate_190,Software Engineering,5,Backend Development,NPTEL,69
+TR191,Candidate_191,Software Engineering,1,Microservices,CEH,70
+TR192,Candidate_192,Software Engineering,2,DevOps,EC Council,71
+TR193,Candidate_193,Software Engineering,3,System Architecture,CISSP,72
+TR194,Candidate_194,Software Engineering,4,HTML CSS,Google Data,73
+TR195,Candidate_195,Software Engineering,5,JavaScript,DataCamp,74
+TR196,Candidate_196,Software Engineering,1,Backend Development,Spark Cert,75
+TR197,Candidate_197,Software Engineering,2,Microservices,CCNA,76
+TR198,Candidate_198,Software Engineering,3,DevOps,ITIL,77
+TR199,Candidate_199,Software Engineering,4,System Architecture,Web Basics,78
+TR200,Candidate_200,Software Engineering,5,HTML CSS,DevOps Expert,79
