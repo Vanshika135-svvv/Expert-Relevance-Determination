@@ -1,0 +1,91 @@
+ExpertID,ExpertName,ExpertSubject,ExperienceYears,PrimarySkill
+EX001,Dr. Amit Sharma,Machine Learning,6,Python
+EX002,Ms. Neha Patil,Data Science,5,Data Analysis
+EX003,Mr. Rahul Mehta,Computer Networks,7,Routing
+EX004,Dr. Sneha Kulkarni,Artificial Intelligence,8,Deep Learning
+EX005,Mr. Kunal Rao,Cyber Security,6,Network Security
+EX006,Ms. Pooja Desai,Database Management,5,SQL
+EX007,Dr. Rohan Verma,Software Engineering,9,System Design
+EX008,Mr. Ankit Joshi,Web Development,4,JavaScript
+EX009,Ms. Aarti Singh,Cloud Computing,6,AWS
+EX010,Dr. Nitin Gupta,Big Data Analytics,10,Hadoop
+EX011,Expert_71,Data Science,15,Statistics
+EX012,Expert_72,Artificial Intelligence,4,Deep Learning
+EX013,Expert_73,Computer Networks,5,Routing Protocols
+EX014,Expert_74,Cyber Security,6,Ethical Hacking
+EX015,Expert_75,Database Management,7,SQL
+EX016,Expert_76,Software Engineering,8,OOP
+EX017,Expert_77,Web Development,9,ReactJS
+EX018,Expert_78,Cloud Computing,10,Docker
+EX019,Expert_79,Big Data Analytics,11,Spark
+EX020,Expert_80,Machine Learning,12,Python
+EX021,Expert_81,Data Science,13,Statistics
+EX022,Expert_82,Artificial Intelligence,14,Deep Learning
+EX023,Expert_83,Computer Networks,15,Routing Protocols
+EX024,Expert_84,Cyber Security,4,Ethical Hacking
+EX025,Expert_85,Database Management,5,SQL
+EX026,Expert_86,Software Engineering,6,OOP
+EX027,Expert_87,Web Development,7,ReactJS
+EX028,Expert_88,Cloud Computing,8,Docker
+EX029,Expert_89,Big Data Analytics,9,Spark
+EX030,Expert_90,Machine Learning,10,Python
+EX031,Expert_91,Data Science,11,Statistics
+EX032,Expert_92,Artificial Intelligence,12,Deep Learning
+EX033,Expert_93,Computer Networks,13,Routing Protocols
+EX034,Expert_94,Cyber Security,14,Ethical Hacking
+EX035,Expert_95,Database Management,15,SQL
+EX036,Expert_96,Software Engineering,4,OOP
+EX037,Expert_97,Web Development,5,ReactJS
+EX038,Expert_98,Cloud Computing,6,Docker
+EX039,Expert_99,Big Data Analytics,7,Spark
+EX040,Expert_100,Machine Learning,8,Python
+EX041,Expert_101,Data Science,9,Statistics
+EX042,Expert_102,Artificial Intelligence,10,Deep Learning
+EX043,Expert_103,Computer Networks,11,Routing Protocols
+EX044,Expert_104,Cyber Security,12,Ethical Hacking
+EX045,Expert_105,Database Management,13,SQL
+EX046,Expert_106,Software Engineering,14,OOP
+EX047,Expert_107,Web Development,15,ReactJS
+EX048,Expert_108,Cloud Computing,4,Docker
+EX049,Expert_109,Big Data Analytics,5,Spark
+EX050,Expert_110,Machine Learning,6,Python
+EX051,Expert_111,Data Science,7,Statistics
+EX052,Expert_112,Artificial Intelligence,8,Deep Learning
+EX053,Expert_113,Computer Networks,9,Routing Protocols
+EX054,Expert_114,Cyber Security,10,Ethical Hacking
+EX055,Expert_115,Database Management,11,SQL
+EX056,Expert_116,Software Engineering,12,OOP
+EX057,Expert_117,Web Development,13,ReactJS
+EX058,Expert_118,Cloud Computing,14,Docker
+EX059,Expert_119,Big Data Analytics,15,Spark
+EX060,Expert_120,Machine Learning,4,Python
+EX061,Expert_121,Data Science,5,Statistics
+EX062,Expert_122,Artificial Intelligence,6,Deep Learning
+EX063,Expert_123,Computer Networks,7,Routing Protocols
+EX064,Expert_124,Cyber Security,8,Ethical Hacking
+EX065,Expert_125,Database Management,9,SQL
+EX066,Expert_126,Software Engineering,10,OOP
+EX067,Expert_127,Web Development,11,ReactJS
+EX068,Expert_128,Cloud Computing,12,Docker
+EX069,Expert_129,Big Data Analytics,13,Spark
+EX070,Expert_130,Machine Learning,14,Python
+EX071,Expert_131,Data Science,15,Statistics
+EX072,Expert_132,Artificial Intelligence,4,Deep Learning
+EX073,Expert_133,Computer Networks,5,Routing Protocols
+EX074,Expert_134,Cyber Security,6,Ethical Hacking
+EX075,Expert_135,Database Management,7,SQL
+EX076,Expert_136,Software Engineering,8,OOP
+EX077,Expert_137,Web Development,9,ReactJS
+EX078,Expert_138,Cloud Computing,10,Docker
+EX079,Expert_139,Big Data Analytics,11,Spark
+EX080,Expert_140,Machine Learning,12,Python
+EX081,Expert_141,Data Science,13,Statistics
+EX082,Expert_142,Artificial Intelligence,14,Deep Learning
+EX083,Expert_143,Computer Networks,15,Routing Protocols
+EX084,Expert_144,Cyber Security,4,Ethical Hacking
+EX085,Expert_145,Database Management,5,SQL
+EX086,Expert_146,Software Engineering,6,OOP
+EX087,Expert_147,Web Development,7,ReactJS
+EX088,Expert_148,Cloud Computing,8,Docker
+EX089,Expert_149,Big Data Analytics,9,Spark
+EX090,Expert_150,Machine Learning,10,Python
