@@ -131,10 +131,13 @@ python -m venv .venv
 ```
 # Activate environment
 # Windows
+```
 .venv\Scripts\activate
-
+```
 # Linux / Mac
+```
 source .venv/bin/activate
+```
 ```
 pip install flask pandas scikit-learn pymongo python-dotenv
 ```
