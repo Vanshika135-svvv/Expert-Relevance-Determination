@@ -156,6 +156,10 @@ cd frontend
 npm install
 npm start
 ```
+Full Run Command
+``` 
+npm run dev
+``` 
 ## 👥 Team Aegis AI
 
 ### Team Members
