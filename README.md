@@ -111,6 +111,7 @@ EXPERT_RELEVANCE/
 │
 └── README.md
 
+```
 
 ---
 
@@ -120,9 +121,12 @@ EXPERT_RELEVANCE/
 
 ```bash
 git clone https://github.com/Vanshika135-svvv/Expert-Relevance-Determination.git
-cd Expert-Relevance-Determination
+cd Expert-Relevance-
+```
 ⚙️ Backend Configuration
+```
 cd backend
+```
 
 python -m venv .venv
 
