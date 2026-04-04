@@ -1,7 +1,8 @@
+.
 
-! Nexus **RAC** | Expert Relevance Determination System Nexus **RAC** (Relevance-based Automated Coordination) is an AI-powered neural matching engine designed to bridge the gap between candidate skillsets and expert domains. Developed by Team Aegis AI, this system leverages Natural Language Processing (**NLP**) to ensure that technical evaluations are handled by the most relevant professionals, specifically optimized for the Recruitment and Assessment Centre (**RAC**) workflow.
+🚀 Nexus **RAC** | Expert Relevance Determination System Nexus **RAC** (Relevance-based Automated Coordination) is an AI-powered neural matching engine designed to bridge the gap between candidate skillsets and expert domains. Developed by Team Aegis AI, this system leverages Natural Language Processing (**NLP**) to ensure that technical evaluations are handled by the most relevant professionals, specifically optimized for the Recruitment and Assessment Centre (**RAC**) workflow.
 
-  Key Features Neural Relevance Engine: Uses TF-**IDF** vectorization and Cosine Similarity to match profiles with high mathematical precision.
+💎 Key Features Neural Relevance Engine: Uses TF-**IDF** vectorization and Cosine Similarity to match profiles with high mathematical precision.
 
 Hybrid Scoring Logic: A final relevance score is generated using a weighted formula:
 
