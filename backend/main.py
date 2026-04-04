@@ -1,11 +1,12 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 from flask_cors import CORS  # Standard for React integration
 from pymongo import MongoClient
 import pandas as pd
 import os
 from dotenv import load_dotenv
 from datetime import datetime
-from werkzeug.security import generate_password_hash, check_password_hash # <-- Security imports
+from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash # Security imports
 
 # Import custom AI logic from the src folder
 from src.text_processor import preprocess_text
@@ -17,9 +18,21 @@ load_dotenv()
 app = Flask(__name__)
 
 # ==========================================
-# 1. CROSS-ORIGIN RESOURCE SHARING (CORS)
+# 1. CONFIGURATION & DIRECTORY SETUP
 # ==========================================
 CORS(app)
+
+# Vault Storage Configuration
+UPLOAD_FOLDER = 'uploads'
+ALLOWED_EXTENSIONS = {'pdf', 'xlsx', 'xls', 'docx', 'png', 'jpg'}
+
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # ==========================================
 # 2. DATABASE CONNECTION
@@ -29,7 +42,7 @@ MONGO_URI = os.getenv("MONGO_URI")
 if not MONGO_URI:
     print("\n" + "="*50)
     print("CRITICAL ERROR: MONGO_URI is missing!")
-    print("Check your .env file in the backend folder.")
+    print("Make sure you have a .env file in your backend folder.")
     print("="*50 + "\n")
 
 # Connect to DB
@@ -38,6 +51,7 @@ db = client['NexusRAC']
 experts_col = db['experts']
 users_col = db['users']
 interviews_col = db['interviews']
+vault_col = db['vault'] # Metadata for uploaded files
 
 # ==========================================
 # 3. BACKEND API ROUTES
@@ -48,7 +62,7 @@ def index():
     return jsonify({
         "status": "Success",
         "message": "Nexus RAC Flask Backend is running!",
-        "version": "1.2.0"
+        "version": "1.4.0"
     })
 
 @app.route('/api/health_check', methods=['GET'])
@@ -66,22 +80,13 @@ def health_check():
     except Exception as e:
         return jsonify({"status": "Critical", "db_status": "Disconnected", "error": str(e)}), 500
 
-@app.route('/api/get_logs', methods=['GET'])
-def get_logs():
-    try:
-        logs = list(interviews_col.find().sort("createdAt", -1).limit(5))
-        formatted_logs = [f"[BOARD] {log.get('boardSubject', 'Unknown')} initialized for {log.get('boardDate', 'Unknown')}" for log in logs]
-        return jsonify(formatted_logs)
-    except:
-        return jsonify(["[ERROR] Could not fetch logs"])
-
 # --- SECURE SIGNUP ROUTE ---
 @app.route('/api/signup', methods=['POST'])
 def register_user():
     try:
         data = request.get_json()
         
-        # 1. Check if username OR email already exists to prevent duplicates
+        # Check for duplicates (Username or Email)
         existing_user = users_col.find_one({
             "$or": [
                 {"username": data['username']},
@@ -92,10 +97,9 @@ def register_user():
         if existing_user:
             return jsonify({"status": "Error", "message": "Username or Email already registered."}), 400
 
-        # 2. HASH THE PASSWORD
+        # Hash the password
         hashed_password = generate_password_hash(data['password'], method='pbkdf2:sha256')
 
-        # 3. Insert user document
         users_col.insert_one({
             "username": data['username'], 
             "email": data['email'],
@@ -113,9 +117,6 @@ def register_user():
 def login_user():
     try:
         data = request.get_json()
-        
-        # SEARCH FOR BOTH: This allows the "Identifier" field in React 
-        # to accept either the username or the email address.
         user = users_col.find_one({
             "$or": [
                 {"username": data['username']},
@@ -123,7 +124,6 @@ def login_user():
             ]
         })
 
-        # Verify the secure hash against the typed password
         if user and check_password_hash(user['password'], data['password']):
             return jsonify({
                 "status": "Success",
@@ -132,12 +132,73 @@ def login_user():
                 "skills": user.get('skills', 'N/A')
             })
         else:
-            return jsonify({
-                "status": "Error", 
-                "message": "Invalid credentials. Check your identifier and security key."
-            }), 401
+            return jsonify({"status": "Error", "message": "Invalid credentials."}), 401
     except Exception as e:
         return jsonify({"status": "Error", "message": str(e)}), 500
+
+# --- AI PROFILE AUDITOR (Skill Fresher Feature) ---
+@app.route('/api/audit', methods=['POST'])
+def audit_profile():
+    try:
+        data = request.json
+        skills = data.get('skills', '').lower()
+        
+        # Neural Feedback Logic
+        feedback = "Your profile is strong in technical implementation. "
+        if "python" in skills or "ai" in skills:
+            feedback += "Consider adding specific frameworks like PyTorch or TensorFlow to increase your Expert Relevance score."
+        elif "react" in skills:
+            feedback += "Focus on Advanced Design Patterns or State Management (Redux/Zustand) to reach Senior Expert levels."
+        else:
+            feedback += "Expand your Skill Vector with core industry technologies to trigger more high-level matches."
+
+        return jsonify({"feedback": feedback})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# --- SECURE FILE VAULT: UPLOAD ---
+@app.route('/api/upload', methods=['POST'])
+def upload_file():
+    try:
+        if 'file' not in request.files:
+            return jsonify({"status": "Error", "message": "No file part"}), 400
+        
+        file = request.files['file']
+        username = request.form.get('username') 
+
+        if file.filename == '':
+            return jsonify({"status": "Error", "message": "No selected file"}), 400
+
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            # Add timestamp to prevent name collisions
+            timestamped_name = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{filename}"
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], timestamped_name)
+            file.save(file_path)
+
+            # Store metadata
+            vault_col.insert_one({
+                "username": username,
+                "filename": filename,
+                "server_filename": timestamped_name,
+                "upload_date": datetime.now(),
+                "size": f"{os.path.getsize(file_path) / 1024:.2f} KB"
+            })
+
+            return jsonify({"status": "Success", "filename": filename})
+        
+        return jsonify({"status": "Error", "message": "File type not allowed"}), 400
+    except Exception as e:
+        return jsonify({"status": "Error", "message": str(e)}), 500
+
+# --- SECURE FILE VAULT: RETRIEVE ---
+@app.route('/api/vault/<username>', methods=['GET'])
+def get_vault_files(username):
+    try:
+        user_files = list(vault_col.find({"username": username}, {"_id": 0}))
+        return jsonify(user_files)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/create_board', methods=['POST'])
 def create_board():
@@ -155,7 +216,7 @@ def create_board():
     except Exception as e:
         return jsonify({"status": "Error", "message": str(e)}), 500
 
-# --- AI MATCHING ROUTE (Multi-Expert Array) ---
+# --- AI MATCHING ROUTE ---
 @app.route('/api/match', methods=['POST'])
 def match_expert():
     data = request.get_json()
@@ -166,11 +227,9 @@ def match_expert():
         return jsonify({"error": "Profile skills are required for AI matching"}), 400
 
     try:
-        # 1. Fetch current board status
         latest_board = interviews_col.find_one({"status": "Live"}, sort=[("createdAt", -1)])
         board_subject = latest_board["boardSubject"] if latest_board else None
 
-        # 2. Fetch all experts
         experts_data = list(experts_col.find({}, {'_id': 0}))
         if not experts_data:
             return jsonify([]), 404
@@ -181,14 +240,12 @@ def match_expert():
         name_col = 'ExpertName' if 'ExpertName' in experts_df.columns else 'name'
         sub_col = 'ExpertSubject' if 'ExpertSubject' in experts_df.columns else 'domain'
         
-        # 3. Calculate similarity for ALL experts
         experts_df['combined_profile'] = experts_df[sub_col].astype(str)
         clean_profiles = experts_df['combined_profile'].apply(preprocess_text).tolist()
         
         scores = calculate_similarity(clean_candidate, clean_profiles)
         experts_df['relevance_score'] = (scores * 100).round(2)
         
-        # 4. Filter for relevant matches (10% to 100%)
         results = []
         for index, row in experts_df.iterrows():
             score = row['relevance_score']
@@ -201,10 +258,8 @@ def match_expert():
                     "score": float(score)
                 })
 
-        # 5. Sort from highest score to lowest
         results = sorted(results, key=lambda x: x['score'], reverse=True)
 
-        # 6. Database Update: Assign top expert to the Live Board
         if board_subject and len(results) > 0:
             best_match_name = results[0]["expert_name"]
             interviews_col.update_one(

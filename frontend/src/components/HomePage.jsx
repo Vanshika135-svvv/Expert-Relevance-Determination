@@ -1,119 +1,205 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BrainCircuit, Users, Shield, ArrowRight } from 'lucide-react';
+import { 
+  BrainCircuit, ArrowRight, CheckCircle2, 
+  BarChart3, Globe, Zap, Target 
+} from 'lucide-react';
 
 const HomePage = () => {
   // Animation variants for staggered entrance
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.2 }
-    }
+    visible: { opacity: 1, transition: { staggerChildren: 0.2 } }
   };
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-200 font-sans selection:bg-cyan-500 overflow-hidden relative">
+    <div className="min-h-screen bg-[#020617] text-slate-200 font-sans selection:bg-cyan-500 overflow-x-hidden">
       
-      {/* Background Glow Effects */}
-      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-cyan-500/10 blur-[150px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[150px] rounded-full pointer-events-none" />
+      {/* Background Decorative Glow Elements */}
+      <div className="fixed inset-0 pointer-events-none -z-10">
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-cyan-500/5 blur-[120px] rounded-full" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-full" />
+      </div>
 
-      {/* Navigation */}
-      <nav className="relative z-10 flex justify-between items-center p-6 md:px-12 max-w-7xl mx-auto">
-        <div className="flex items-center gap-2">
-          <BrainCircuit className="text-cyan-400" size={32} />
-          <span className="text-2xl font-black tracking-widest bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-            NEXUS RAC
-          </span>
-        </div>
-        <div className="flex gap-4">
-          <Link to="/login" className="px-5 py-2 rounded-xl text-sm font-bold text-slate-300 hover:text-white hover:bg-white/5 transition-all">
-            Sign In
-          </Link>
-          <Link to="/signup" className="px-5 py-2 rounded-xl text-sm font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 transition-all shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-            Create Account
+      {/* 1. Header/Navigation */}
+      <nav className="sticky top-0 z-50 backdrop-blur-md border-b border-white/5 bg-[#020617]/50">
+        <div className="max-w-7xl mx-auto flex justify-between items-center p-6 px-8">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
+              <BrainCircuit className="text-cyan-400" size={24} />
+            </div>
+            <span className="text-xl font-black tracking-tighter text-white">NEXUS RAC</span>
+          </div>
+          
+          <div className="hidden md:flex gap-8 text-sm font-bold text-slate-400 uppercase tracking-widest">
+            <a href="#features" className="hover:text-cyan-400 transition-colors">Platform</a>
+            <a href="#stats" className="hover:text-cyan-400 transition-colors">Impact</a>
+            <a href="#how-it-works" className="hover:text-cyan-400 transition-colors">Process</a>
+          </div>
+
+          <Link to="/login" className="px-6 py-2.5 rounded-full bg-white text-black font-black text-xs uppercase hover:bg-cyan-400 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]">
+            Interface Access
           </Link>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <main className="relative z-10 max-w-7xl mx-auto px-6 pt-20 pb-32 flex flex-col items-center text-center">
-        <motion.div 
-          initial="hidden" 
-          animate="visible" 
-          variants={containerVariants}
-          className="max-w-4xl"
-        >
-          <motion.div variants={itemVariants} className="inline-block mb-4 px-4 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 backdrop-blur-sm">
-            <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">Aegis AI Powered</span>
+      {/* 2. Hero Section */}
+      <section className="relative pt-20 pb-32 px-6">
+        <div className="max-w-5xl mx-auto text-center">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }} 
+            animate={{ scale: 1, opacity: 1 }} 
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-bold uppercase tracking-widest mb-8"
+          >
+            <Zap size={14} /> AI-Powered Relevance Engine
           </motion.div>
           
-          <motion.h1 variants={itemVariants} className="text-5xl md:text-7xl font-black mb-6 leading-tight">
-            Expert Relevance <br />
-            <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 bg-clip-text text-transparent">
-              Determination System
+          <motion.h1 
+            initial={{ y: 20, opacity: 0 }} 
+            animate={{ y: 0, opacity: 1 }} 
+            transition={{ delay: 0.2 }} 
+            className="text-6xl md:text-8xl font-black text-white leading-[0.9] mb-8 tracking-tighter"
+          >
+            VALIDATE SKILLS. <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600">
+              MATCH EXPERTS.
             </span>
           </motion.h1>
-          
-          <motion.p variants={itemVariants} className="text-lg md:text-xl text-slate-400 mb-12 max-w-2xl mx-auto leading-relaxed">
-            A state-of-the-art neural matching engine that bridges the gap between candidate skill vectors and expert domains for optimal interview boards.
+
+          <motion.p 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            transition={{ delay: 0.4 }} 
+            className="text-slate-400 text-lg md:text-xl max-w-2xl mx-auto mb-12 leading-relaxed"
+          >
+            The intelligent bridge between technical candidates and domain experts. 
+            Automating board selection with 98% neural precision for SVVV Indore.
           </motion.p>
-          
-          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/signup" className="flex items-center justify-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-lg transition-all shadow-[0_0_20px_rgba(6,182,212,0.4)] active:scale-95">
-              Initialize System <ArrowRight size={20} />
+
+          <motion.div 
+            initial={{ y: 20, opacity: 0 }} 
+            animate={{ y: 0, opacity: 1 }} 
+            transition={{ delay: 0.6 }} 
+            className="flex flex-wrap justify-center gap-4"
+          >
+            <Link to="/signup" className="px-10 py-5 bg-cyan-600 hover:bg-cyan-500 rounded-2xl font-black text-white text-lg flex items-center gap-3 transition-all shadow-xl shadow-cyan-900/20 active:scale-95">
+              GET STARTED <ArrowRight size={20} />
+            </Link>
+            <Link to="/login" className="px-10 py-5 bg-white/5 border border-white/10 hover:bg-white/10 rounded-2xl font-black text-white text-lg transition-all">
+              VIEW DEMO
             </Link>
           </motion.div>
-        </motion.div>
+        </div>
+      </section>
 
-        {/* Feature/Role Cards */}
-        <motion.div 
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8, duration: 0.6 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-24 w-full"
-        >
-          {/* Candidate Card */}
-          <div className="bg-white/5 border border-white/10 backdrop-blur-md p-8 rounded-3xl hover:border-cyan-500/30 transition-colors text-left group">
-            <div className="w-14 h-14 bg-cyan-500/10 rounded-2xl flex items-center justify-center mb-6 border border-cyan-500/20 group-hover:bg-cyan-500/20 transition-colors">
-              <Users className="text-cyan-400" size={28} />
+      {/* 3. Stats Section (Impact Metrics) */}
+      <section id="stats" className="py-20 border-y border-white/5 bg-white/[0.01]">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
+          {[
+            { label: "Neural Matches", val: "12K+" },
+            { label: "Active Experts", val: "450+" },
+            { label: "Skill Clusters", val: "89" },
+            { label: "Accuracy Rate", val: "98.4%" }
+          ].map((stat, i) => (
+            <div key={i}>
+              <h2 className="text-4xl md:text-5xl font-black text-white mb-2">{stat.val}</h2>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em]">{stat.label}</p>
             </div>
-            <h3 className="text-xl font-bold text-white mb-3">For Candidates</h3>
-            <p className="text-slate-400 text-sm leading-relaxed mb-6">
-              Input your tech stack and skill vector. Let our Cosine Similarity engine find the perfect expert to evaluate your abilities fairly.
-            </p>
-          </div>
+          ))}
+        </div>
+      </section>
 
-          {/* Expert Card */}
-          <div className="bg-white/5 border border-white/10 backdrop-blur-md p-8 rounded-3xl hover:border-blue-500/30 transition-colors text-left group">
-            <div className="w-14 h-14 bg-blue-500/10 rounded-2xl flex items-center justify-center mb-6 border border-blue-500/20 group-hover:bg-blue-500/20 transition-colors">
-              <BrainCircuit className="text-blue-400" size={28} />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-3">For Experts</h3>
-            <p className="text-slate-400 text-sm leading-relaxed mb-6">
-              Manage your interview boards. Connect with candidates whose skills directly align with your domain experience.
+      {/* 4. Feature Cards Section */}
+      <section id="features" className="py-32 px-6 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          
+          {/* Skill Verification */}
+          <motion.div whileHover={{ y: -10 }} className="p-10 rounded-[3rem] bg-white/5 border border-white/10 backdrop-blur-xl">
+            <Target className="text-cyan-400 mb-6" size={40} />
+            <h3 className="text-2xl font-black mb-4 text-white">Skill Verification</h3>
+            <p className="text-slate-400 text-sm leading-relaxed mb-8">
+              Take AI-proctored assessments to validate your core tech stack. Get verified badges that experts trust.
             </p>
-          </div>
+            <ul className="space-y-3">
+              {['Smart Quizzes', 'Skill Badges', 'AI Audit'].map(f => (
+                <li key={f} className="flex items-center gap-2 text-xs font-bold text-slate-300">
+                  <CheckCircle2 size={14} className="text-cyan-500" /> {f}
+                </li>
+              ))}
+            </ul>
+          </motion.div>
 
-          {/* Admin Card */}
-          <div className="bg-white/5 border border-white/10 backdrop-blur-md p-8 rounded-3xl hover:border-purple-500/30 transition-colors text-left group">
-            <div className="w-14 h-14 bg-purple-500/10 rounded-2xl flex items-center justify-center mb-6 border border-purple-500/20 group-hover:bg-purple-500/20 transition-colors">
-              <Shield className="text-purple-400" size={28} />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-3">For System Admins</h3>
-            <p className="text-slate-400 text-sm leading-relaxed mb-6">
-              Monitor system health, view match logs, and oversee the entire relevance determination pipeline from a unified dashboard.
+          {/* Relevance Engine */}
+          <motion.div whileHover={{ y: -10 }} className="p-10 rounded-[3rem] bg-blue-600/10 border border-blue-500/20 backdrop-blur-xl">
+            <BarChart3 className="text-blue-400 mb-6" size={40} />
+            <h3 className="text-2xl font-black mb-4 text-white">Relevance Engine</h3>
+            <p className="text-slate-400 text-sm leading-relaxed mb-8">
+              Our Cosine Similarity algorithm parses skill vectors to find experts whose domain matches your specific experience.
             </p>
+            <ul className="space-y-3">
+              {['NLP Processing', 'Vector Matching', 'Live Sync'].map(f => (
+                <li key={f} className="flex items-center gap-2 text-xs font-bold text-slate-300">
+                  <CheckCircle2 size={14} className="text-blue-500" /> {f}
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+
+          {/* Global Expert Panel */}
+          <motion.div whileHover={{ y: -10 }} className="p-10 rounded-[3rem] bg-white/5 border border-white/10 backdrop-blur-xl">
+            <Globe className="text-purple-400 mb-6" size={40} />
+            <h3 className="text-2xl font-black mb-4 text-white">Expert Panel</h3>
+            <p className="text-slate-400 text-sm leading-relaxed mb-8">
+              Access a network of SVVV verified experts. Manage interview boards with real-time feedback loops and logging.
+            </p>
+            <ul className="space-y-3">
+              {['Board Management', 'Live Logs', 'Admin Control'].map(f => (
+                <li key={f} className="flex items-center gap-2 text-xs font-bold text-slate-300">
+                  <CheckCircle2 size={14} className="text-purple-500" /> {f}
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* 5. How It Works Section */}
+      <section id="how-it-works" className="py-32 bg-white/[0.01]">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <h2 className="text-4xl font-black text-white mb-16 uppercase tracking-widest">The Process</h2>
+          <div className="space-y-12 text-left">
+            {[
+              { step: "01", title: "Create Identity", desc: "Register as a Candidate or Expert and initialize your unique skill vector." },
+              { step: "02", title: "AI Skill Validation", desc: "Our neural engine audits your profile and determines market-ready relevance." },
+              { step: "03", title: "Smart Match Sync", desc: "Initiate the Relevance Engine to find the top-ranked expert for your specific board." }
+            ].map((step, i) => (
+              <div key={i} className="flex gap-8 items-start group">
+                <span className="text-5xl font-black text-white/10 group-hover:text-cyan-500 transition-colors">{step.step}</span>
+                <div>
+                  <h4 className="text-xl font-black text-white mb-2">{step.title}</h4>
+                  <p className="text-slate-400 text-sm leading-relaxed">{step.desc}</p>
+                </div>
+              </div>
+            ))}
           </div>
-        </motion.div>
-      </main>
+        </div>
+      </section>
+
+      {/* 6. Footer */}
+      <footer className="p-12 border-t border-white/5 text-center bg-[#020617]">
+        <p className="text-xs font-bold text-slate-600 uppercase tracking-widest mb-2">
+          &copy; 2026 AEGIS AI | NEXUS RAC SYSTEM
+        </p>
+        <p className="text-[10px] text-slate-700 uppercase tracking-widest font-black">
+          Shri Vaishnav Vidyapeeth Vishwavidyalaya, Indore
+        </p>
+      </footer>
     </div>
   );
 };
