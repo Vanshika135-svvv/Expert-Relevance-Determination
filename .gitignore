@@ -11,8 +11,6 @@ node_modules/
 frontend/node_modules/
 # Note: package-lock.json is usually kept, but if you're having merge 
 # conflicts with it, ignoring it for now is fine for a clean start.
-package-lock.json
-frontend/package-lock.json
 
 # --- Frontend Build Outputs ---
 frontend/build/
