@@ -126,53 +126,60 @@ cd Expert-Relevance-
 ⚙️ Backend Configuration
 ```
 cd backend
-```
 
 python -m venv .venv
-
+```
 # Activate environment
 # Windows
 .venv\Scripts\activate
 
 # Linux / Mac
 source .venv/bin/activate
-
+```
 pip install flask pandas scikit-learn pymongo python-dotenv
-
+```
 Create a .env file and add:
-
+```
 MONGO_URI=your_mongodb_string
-
+```
 Run the backend:
-
+```
 python main.py
+```
 💻 Frontend Configuration
+```
 cd frontend
 
 npm install
 npm start
-👥 Team AI
+```
+## 👥 Team Aegis AI
 
-Vanshika Tiwari
-Team Leader & Backend Architect
+### Team Members
 
-Dhanshri
-Data Analyst & ML Logic
+**Vanshika Tiwari**  
+*Team Leader & Backend Architect*
 
-Harman
-Frontend Developer
+**Dhanshri**  
+*Data Analyst & ML Logic*
 
-Vaidika
-Documentation Specialist
+**Harman**  
+*Frontend Developer*
 
-Project Guide
+**Vaidika**  
+*Documentation Specialist*
 
-Ms. Juhi Shrivastava
+---
 
-Organization
+### 🎓 Project Guide
+**Ms. Juhi Shrivastava**
 
-Shri Vaishnav Vidyapeeth Vishwavidyalaya (SVVV)
+---
 
-Collaboration
+### 🏫 Organization
+**Shri Vaishnav Vidyapeeth Vishwavidyalaya (SVVV)**
 
-SVVV Minor Project — CSE (AI-IBM)
+---
+
+### 🤝 Collaboration
+**SVVV Minor Project — CSE (AI-IBM)**
