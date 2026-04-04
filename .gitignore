@@ -1,0 +1,48 @@
+# --- OS / IDE Files ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Node / Frontend Dependencies ---
+node_modules/
+frontend/node_modules/
+# Note: package-lock.json is usually kept, but if you're having merge 
+# conflicts with it, ignoring it for now is fine for a clean start.
+package-lock.json
+frontend/package-lock.json
+
+# --- Frontend Build Outputs ---
+frontend/build/
+frontend/dist/
+build/
+dist/
+.eslintcache
+
+# --- Python / Backend Files ---
+backend/__pycache__/
+__pycache__/
+*.py[cod]
+*$py.class
+backend/venv/
+backend/env/
+venv/
+env/
+# These ignore large data science libraries that can be re-installed
+.ipynb_checkpoints/
+*.pyc
+
+# --- Environment Secrets (VERY IMPORTANT) ---
+.env
+frontend/.env.local
+backend/.env
+*.env
+
+# --- Logs ---
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+backend/logs/
+*.log

@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 1. Global Styles & Resets */
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #020617; /* Deep Navy/Black Background */
+  color: #ffffff;
+  /* Using standard fallbacks for Plus Jakarta Sans */
+  font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* 2. Smooth Scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* 3. Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #020617;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* 4. Custom Components using @layer */
+@layer components {
+  .glass-card {
+    @apply bg-white/5 border border-white/10 backdrop-blur-xl rounded-[2.5rem];
+  }
+  
+  .glass-input {
+    @apply bg-black/20 border border-white/10 rounded-2xl py-4 px-6 focus:border-cyan-500/50 outline-none transition-all;
+  }
+
+  .btn-primary {
+    /* Using bg-gradient-to-r for v3 compatibility */
+    @apply bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold tracking-widest uppercase rounded-2xl transition-all active:scale-[0.98] shadow-lg shadow-cyan-900/20;
+  }
+}
+
+/* 5. Range Inputs (Sliders) */
+input[type='range'] {
+  @apply appearance-none bg-white/10 rounded-lg h-2;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  @apply appearance-none w-6 h-6 bg-cyan-400 rounded-full cursor-pointer border-4 border-[#020617] shadow-lg;
+}
