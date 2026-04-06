@@ -31,7 +31,7 @@ const AdminDashboard = () => {
   // 2. DIAGNOSTICS: Fetch real-time system health
   const fetchDiagnostics = async () => {
     try {
-      const response = await axios.get('http://127.0.0.1:5000/api/health_check');
+      const response = await axios.get('https://expert-relevance-determination.onrender.com/api/health_check');
       setStats(response.data);
     } catch (error) {
       setStats({
@@ -58,7 +58,7 @@ const AdminDashboard = () => {
 
     setLoading(true);
     try {
-      await axios.post('http://127.0.0.1:5000/api/create_board', {
+      await axios.post('https://expert-relevance-determination.onrender.com/api/create_board', {
         subject: board.subject,
         date: board.date
       });

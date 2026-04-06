@@ -36,7 +36,7 @@ const ExpertDashboard = () => {
     try {
       // Assuming you will create an /api/evaluate route in Flask later
       // For now, this simulates the secure submission
-      // await axios.post('http://127.0.0.1:5000/api/evaluate', evaluation);
+      // await axios.post('https://expert-relevance-determination.onrender.com/api/evaluate', evaluation);
       
       // Simulating network delay for the UI effect
       await new Promise(resolve => setTimeout(resolve, 1500)); 

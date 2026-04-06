@@ -26,7 +26,7 @@ const Signup = () => {
 
     try {
       // 2. Send the updated data to your Flask backend
-      const res = await axios.post('http://127.0.0.1:5000/api/signup', formData);
+      const res = await axios.post('https://expert-relevance-determination.onrender.com/api/signup', formData);
       
       if (res.data.status === "Success" || res.status === 200) {
         

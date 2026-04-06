@@ -55,7 +55,7 @@ const CandidateDashboard = () => {
   // 1. Fetch files from MongoDB
   const fetchUserFiles = async () => {
     try {
-      const res = await axios.get(`http://127.0.0.1:5000/api/vault/${user.name}`);
+      const res = await axios.get(`https://expert-relevance-determination.onrender.com/api/vault/${user.name}`);
       setFiles(res.data.map(f => ({
         name: f.filename,
         size: f.size,
@@ -78,7 +78,7 @@ const CandidateDashboard = () => {
 
     setLoading(true);
     try {
-      const res = await axios.post('http://127.0.0.1:5000/api/upload', formData, {
+      const res = await axios.post('https://expert-relevance-determination.onrender.com/api/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
@@ -97,7 +97,7 @@ const CandidateDashboard = () => {
     setAuditing(true);
     setAiFeedback("");
     try {
-      const res = await axios.post('http://127.0.0.1:5000/api/audit', { 
+      const res = await axios.post('https://expert-relevance-determination.onrender.com/api/audit', { 
         skills: user.skills,
         username: user.name 
       });
@@ -113,7 +113,7 @@ const CandidateDashboard = () => {
   const runMatching = async () => {
     setLoading(true);
     try {
-      const res = await axios.post('http://127.0.0.1:5000/api/match', {
+      const res = await axios.post('https://expert-relevance-determination.onrender.com/api/match', {
         skills: user.skills,
         username: user.name
       });
