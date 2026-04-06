@@ -8,10 +8,5 @@
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
-  },
-  "dependencies": {
-    "framer-motion": "^12.38.0",
-    "jspdf": "^4.2.1",
-    "lucide-react": "^1.7.0"
   }
 }
