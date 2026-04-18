@@ -1,41 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
 import { 
-  User, Cpu, LogOut, LayoutDashboard, 
-  FileText, Mic2, BarChart3, Upload, 
-  ChevronRight, CheckCircle2, Zap, Brain,
-  Sparkles, Target, AlertTriangle
+  FolderOpen, Cpu, Activity, Settings, 
+  LogOut, ChevronLeft, ChevronRight, 
+  Search, ShieldCheck, UploadCloud, FileText,
+  Zap, BrainCircuit, CheckCircle2, Sparkles,
+  BarChart3, AlertTriangle, User, Target, Mic2
 } from 'lucide-react';
-
+import axios from 'axios';
 import MatchResultsCard from './MatchResultsCard';
 
 const CandidateDashboard = () => {
   const navigate = useNavigate();
   
-  // --- STATE MANAGEMENT ---
+  // --- UI & Navigation States ---
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  const [experts, setExperts] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState({ name: 'Candidate', skills: '' });
   
-  // AI Auditor State
+  // --- Data States ---
+  const [user, setUser] = useState({ name: 'Candidate', skills: '', role: 'Candidate' });
+  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
+  const [uploadStatus, setUploadStatus] = useState('');
+  
+  // --- Feature States ---
+  const [experts, setExperts] = useState([]);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [aiFeedback, setAiFeedback] = useState("");
   const [auditing, setAuditing] = useState(false);
-  
-  // Vault (File System) State
-  const [files, setFiles] = useState([]);
 
   // --- INITIALIZATION ---
   useEffect(() => {
-    const storedName = localStorage.getItem("username");
-    const storedSkills = localStorage.getItem("skills");
-    if (storedName) {
-      setUser({ name: storedName, skills: storedSkills || '' });
-      if (storedSkills) setIsVerified(true);
-    }
+    const storedName = localStorage.getItem("username") || "Verified Candidate";
+    const storedSkills = localStorage.getItem("skills") || "";
+    const storedRole = localStorage.getItem("role") || "Candidate";
+    
+    setUser({ name: storedName, skills: storedSkills, role: storedRole });
+    if (storedSkills) setIsVerified(true);
   }, []);
 
   // Fetch files from backend whenever the username is available
@@ -50,9 +53,7 @@ const CandidateDashboard = () => {
     navigate('/login');
   };
 
-  // --- FEATURE: SECURE FILE VAULT (THE HANDSHAKE) ---
-  
-  // 1. Fetch files from MongoDB
+  // --- SECURE FILE VAULT ---
   const fetchUserFiles = async () => {
     try {
       const res = await axios.get(`https://expert-relevance-determination.onrender.com/api/vault/${user.name}`);
@@ -63,36 +64,39 @@ const CandidateDashboard = () => {
         date: new Date(f.upload_date).toLocaleDateString()
       })));
     } catch (err) {
-      console.log("Vault connection pending...");
+      console.log("Vault connection pending or empty...");
     }
   };
 
-  // 2. Upload file using FormData API
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const handleUpload = async (e) => {
+    e.preventDefault();
+    if (!file) return setUploadStatus('Please select a file.');
 
     const formData = new FormData();
     formData.append('file', file);
     formData.append('username', user.name);
 
-    setLoading(true);
+    setIsProcessing(true);
+    setUploadStatus('Encrypting & Uploading...');
+
     try {
       const res = await axios.post('https://expert-relevance-determination.onrender.com/api/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-
       if (res.data.status === "Success") {
-        fetchUserFiles(); // Refresh list immediately
+        setUploadStatus('Data securely logged in Vault.');
+        setFile(null);
+        fetchUserFiles(); // Refresh the grid
       }
     } catch (err) {
-      alert("Neural upload interrupted. Check backend connection.");
+      setUploadStatus('Upload failed. Check network link.');
     } finally {
-      setLoading(false);
+      setIsProcessing(false);
+      setTimeout(() => setUploadStatus(''), 3000);
     }
   };
 
-  // --- FEATURE: AI AUDITOR ---
+  // --- AI AUDITOR ---
   const auditProfile = async () => {
     setAuditing(true);
     setAiFeedback("");
@@ -109,150 +113,214 @@ const CandidateDashboard = () => {
     }
   };
 
-  // --- FEATURE: NEURAL MATCHING ---
-  const runMatching = async () => {
-    setLoading(true);
+  // --- NEURAL MATCHING ---
+  const runRelevanceEngine = async () => {
+    setIsProcessing(true);
     try {
       const res = await axios.post('https://expert-relevance-determination.onrender.com/api/match', {
         skills: user.skills,
         username: user.name
       });
       setExperts(res.data);
-      setActiveTab('match'); 
     } catch (err) {
-      console.error("Match sequence failed");
+      console.error(err);
     } finally {
-      setLoading(false);
+      setIsProcessing(false);
     }
   };
 
   const renderSkillBadges = () => {
-    if (!user.skills) return <span className="text-slate-600 italic text-xs">No skills detected.</span>;
+    if (!user.skills) return <span className="text-slate-600 italic text-xs font-bold">No skills detected.</span>;
     return user.skills.split(',').map((skill, i) => (
-      <span key={i} className="px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-bold uppercase tracking-wider">
+      <span key={i} className="px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold uppercase tracking-wider">
         {skill.trim()}
       </span>
     ));
   };
 
+  // --- REUSABLE SIDEBAR ITEM ---
+  const SidebarItem = ({ icon: Icon, label, id }) => (
+    <button
+      onClick={() => setActiveTab(id)}
+      className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all group ${
+        activeTab === id 
+          ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.15)]' 
+          : 'text-slate-400 hover:bg-white/5 hover:text-white border border-transparent'
+      }`}
+    >
+      <Icon size={20} className={activeTab === id ? 'animate-pulse' : 'group-hover:scale-110 transition-transform'} />
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.span 
+            initial={{ opacity: 0, width: 0 }} 
+            animate={{ opacity: 1, width: 'auto' }} 
+            exit={{ opacity: 0, width: 0 }}
+            className="font-bold text-xs uppercase tracking-widest whitespace-nowrap overflow-hidden"
+          >
+            {label}
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </button>
+  );
+
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-200 font-sans flex overflow-hidden selection:bg-cyan-500">
+    <div className="min-h-screen bg-[#020617] text-white flex overflow-hidden selection:bg-blue-500 selection:text-black font-sans">
       
-      {/* --- SIDEBAR NAVIGATION --- */}
-      <aside className="w-64 bg-white/5 border-r border-white/10 backdrop-blur-2xl flex flex-col p-6 relative z-30">
-        <div className="flex items-center gap-3 mb-12">
-          <div className="p-2 bg-cyan-500/20 rounded-lg border border-cyan-500/30">
-            <Brain className="text-cyan-400" size={24} />
-          </div>
-          <span className="font-black tracking-tighter text-xl text-white uppercase">NEXUS RAC</span>
-        </div>
+      {/* Background Glow */}
+      <div className="absolute inset-0 -z-10 pointer-events-none">
+        <div className="absolute top-[20%] left-[-10%] w-[40vw] h-[40vw] bg-blue-600/10 blur-[120px] rounded-full mix-blend-screen" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[30vw] h-[30vw] bg-emerald-500/10 blur-[100px] rounded-full mix-blend-screen" />
+      </div>
 
-        <nav className="space-y-2 flex-grow">
-          {[
-            { id: 'overview', label: 'Dashboard', icon: LayoutDashboard },
-            { id: 'match', label: 'Neural Match', icon: Cpu },
-            { id: 'vault', label: 'The Vault', icon: FileText },
-            { id: 'results', label: 'Performance', icon: BarChart3 },
-          ].map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
-                activeTab === item.id ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.1)]' : 'text-slate-500 hover:text-slate-300'
-              }`}
-            >
-              <item.icon size={18} /> {item.label}
-            </button>
-          ))}
-        </nav>
-
-        <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-red-400 font-black text-xs uppercase tracking-widest transition-colors mt-auto">
-          <LogOut size={18} /> DISCONNECT
+      {/* --- SIDEBAR --- */}
+      <motion.aside 
+        animate={{ width: isSidebarOpen ? 280 : 100 }}
+        className="h-screen bg-black/40 backdrop-blur-2xl border-r border-white/10 flex flex-col p-6 relative z-20 shrink-0"
+      >
+        <button 
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="absolute -right-4 top-10 w-8 h-8 bg-blue-500 text-black rounded-full flex items-center justify-center cursor-pointer hover:scale-110 transition-transform shadow-[0_0_15px_rgba(59,130,246,0.5)]"
+        >
+          {isSidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
         </button>
-      </aside>
 
-      {/* --- MAIN CONTENT AREA --- */}
-      <main className="flex-grow overflow-y-auto p-10 relative">
-        <div className="absolute top-0 right-0 w-[50%] h-[40%] bg-cyan-500/5 blur-[120px] -z-10" />
-
-        <header className="flex justify-between items-center mb-12">
-          <div>
-            <h2 className="text-4xl font-black text-white uppercase tracking-tighter">Candidate Portal</h2>
-            <div className="flex items-center gap-2 mt-2">
-               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-               <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.3em]">Node Active: {user.name}</p>
+        <div className="flex items-center gap-3 mb-12">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-emerald-600 p-0.5 shrink-0">
+            <div className="w-full h-full bg-[#020617] rounded-full flex items-center justify-center">
+              <ShieldCheck className="text-blue-400" size={24} />
             </div>
           </div>
-          <button 
-            onClick={() => navigate('/interview')}
-            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-black rounded-xl text-xs uppercase tracking-widest hover:shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all flex items-center gap-2"
-          >
-            <Mic2 size={16} /> Join Live Board
-          </button>
+          <AnimatePresence>
+            {isSidebarOpen && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="overflow-hidden whitespace-nowrap">
+                <h2 className="text-sm font-black tracking-widest uppercase">Nexus Access</h2>
+                <p className="text-[9px] text-blue-500 font-bold tracking-[0.2em] uppercase">Candidate Node</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <nav className="flex-1 space-y-3">
+          <SidebarItem icon={Activity} label="Overview" id="overview" />
+          <SidebarItem icon={Cpu} label="Match Engine" id="match" />
+          <SidebarItem icon={FolderOpen} label="Data Vault" id="vault" />
+          <SidebarItem icon={BarChart3} label="Performance" id="results" />
+        </nav>
+
+        <button 
+          onClick={handleLogout}
+          className="w-full flex items-center gap-4 p-4 rounded-2xl text-red-400 hover:bg-red-500/10 hover:border-red-500/30 border border-transparent transition-all group mt-4 shrink-0"
+        >
+          <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
+          <AnimatePresence>
+            {isSidebarOpen && (
+              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="font-bold text-xs uppercase tracking-widest whitespace-nowrap overflow-hidden">
+                Terminate Link
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </button>
+      </motion.aside>
+
+      {/* --- MAIN CONTENT AREA --- */}
+      <main className="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
+        
+        {/* Topbar */}
+        <header className="h-24 px-6 md:px-10 flex items-center justify-between border-b border-white/5 bg-white/[0.02] backdrop-blur-md shrink-0">
+          <div>
+            <h1 className="text-xl md:text-2xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-500">
+              Identify: {user.name}
+            </h1>
+            <p className="text-xs text-slate-400 font-mono mt-1 flex items-center gap-2">
+              Status: <span className="text-blue-400 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span> Connected</span>
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-6">
+            <button 
+              onClick={() => navigate('/interview')}
+              className="hidden md:flex px-6 py-3 bg-gradient-to-r from-blue-600 to-emerald-600 text-white font-black rounded-xl text-[10px] uppercase tracking-widest hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all items-center gap-2"
+            >
+              <Mic2 size={16} /> Join Live Board
+            </button>
+            <div className="w-10 h-10 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center animate-pulse shrink-0">
+              <BrainCircuit className="text-blue-400" size={18} />
+            </div>
+          </div>
         </header>
 
-        <AnimatePresence mode="wait">
-          
-          {/* TAB 1: OVERVIEW & AUDITOR */}
-          {activeTab === 'overview' && (
-            <motion.div key="overview" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-white/5 border border-white/10 p-6 rounded-[2rem] backdrop-blur-md">
-                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Matching Status</p>
-                     <p className="text-white font-bold text-lg">{experts.length > 0 ? "Sequence Ready" : "Awaiting Sync"}</p>
-                  </div>
-                  <div className="bg-white/5 border border-white/10 p-6 rounded-[2rem] backdrop-blur-md">
-                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Integrity Score</p>
-                     <p className="text-emerald-400 font-bold text-lg">{isVerified ? "Verified (Alpha)" : "Standard"}</p>
-                  </div>
-                </div>
-
-                <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-md">
-                  <div className="flex items-center gap-6 mb-8">
-                    <div className="w-20 h-20 bg-cyan-500/20 rounded-3xl flex items-center justify-center border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.2)]">
-                      <User className="text-cyan-400" size={36} />
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar">
+          <AnimatePresence mode="wait">
+            
+            {/* OVERVIEW TAB */}
+            {activeTab === 'overview' && (
+              <motion.div key="overview" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+                
+                <div className="lg:col-span-2 space-y-8">
+                  {/* Status Row */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white/5 border border-white/10 p-6 rounded-[2rem] backdrop-blur-md hover:-translate-y-1 transition-transform">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Matching Status</p>
+                      <p className="text-white font-bold text-lg">{experts.length > 0 ? "Sequence Ready" : "Awaiting Sync"}</p>
                     </div>
-                    <div>
-                       <h3 className="text-2xl font-bold text-white mb-1">{user.name}</h3>
-                       <div className="flex flex-wrap gap-2">{renderSkillBadges()}</div>
+                    <div className="bg-white/5 border border-white/10 p-6 rounded-[2rem] backdrop-blur-md hover:-translate-y-1 transition-transform">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Integrity Score</p>
+                      <p className="text-emerald-400 font-bold text-lg">{isVerified ? "Verified (Alpha)" : "Standard"}</p>
                     </div>
                   </div>
 
-                  <div className="space-y-4 pt-4 border-t border-white/5">
-                    <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                       <Sparkles size={14} className="text-cyan-400" /> AI Neural Insights
-                    </h4>
-                    {aiFeedback ? (
-                      <p className="text-sm text-cyan-100 leading-relaxed italic p-4 bg-cyan-500/5 rounded-2xl border border-cyan-500/10">
-                         "{aiFeedback}"
-                      </p>
-                    ) : (
-                      <button 
-                        onClick={auditProfile} 
-                        className="w-full py-4 bg-white/5 border border-cyan-500/20 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400 hover:bg-cyan-500/5 transition-all"
-                      >
-                        {auditing ? "Simulating Logic..." : "Analyze Skill Relevance"}
-                      </button>
-                    )}
+                  {/* Profile Identity Card */}
+                  <div className="bg-gradient-to-br from-white/5 to-transparent border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-md">
+                    <div className="flex items-center gap-6 mb-8">
+                      <div className="w-20 h-20 bg-blue-500/20 rounded-3xl flex items-center justify-center border border-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.2)] shrink-0">
+                        <User className="text-blue-400" size={36} />
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-black uppercase tracking-widest text-white mb-2">{user.name}</h3>
+                        <div className="flex flex-wrap gap-2">{renderSkillBadges()}</div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 pt-6 border-t border-white/5">
+                      <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                        <Sparkles size={14} className="text-blue-400" /> AI Neural Insights
+                      </h4>
+                      {aiFeedback ? (
+                        <p className="text-sm text-blue-100 font-medium leading-relaxed italic p-6 bg-blue-500/10 rounded-2xl border border-blue-500/20">
+                          "{aiFeedback}"
+                        </p>
+                      ) : (
+                        <button 
+                          onClick={auditProfile} 
+                          className="w-full py-5 bg-white/5 border border-blue-500/20 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-blue-400 hover:bg-blue-500/10 transition-all shadow-inner"
+                        >
+                          {auditing ? "Simulating Logic..." : "Analyze Skill Relevance"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="space-y-6">
-                 <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-md">
-                    <h3 className="text-lg font-bold mb-6 flex items-center gap-2"><Target size={20} className="text-blue-400" /> Roadmap</h3>
+                {/* Right Column */}
+                <div className="space-y-6">
+                  {/* Roadmap Box */}
+                  <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-md">
+                    <h3 className="text-lg font-black uppercase tracking-widest mb-6 flex items-center gap-2">
+                      <Target size={20} className="text-blue-400" /> Action Roadmap
+                    </h3>
                     <div className="space-y-8 relative">
                       <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-white/5" />
                       {[
                         { step: "Node Confirmed", status: "complete" },
                         { step: "Skill Sync", status: "active" },
-                        { step: "Expert Match", status: "pending" },
+                        { step: "Expert Match", status: experts.length > 0 ? "complete" : "pending" },
                         { step: "Live Board", status: "pending" }
                       ].map((s, i) => (
                         <div key={i} className="flex gap-4 items-center relative z-10">
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center border-4 border-[#020617] ${
-                            s.status === 'complete' ? 'bg-emerald-500' : s.status === 'active' ? 'bg-cyan-500 animate-pulse' : 'bg-slate-800'
+                            s.status === 'complete' ? 'bg-emerald-500' : s.status === 'active' ? 'bg-blue-500 animate-pulse' : 'bg-slate-800'
                           }`}>
                             <CheckCircle2 size={12} className="text-white" />
                           </div>
@@ -262,85 +330,138 @@ const CandidateDashboard = () => {
                         </div>
                       ))}
                     </div>
-                 </div>
-
-                 <button 
-                    onClick={runMatching}
-                    disabled={loading}
-                    className="w-full py-6 bg-gradient-to-br from-cyan-600 to-blue-700 rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] shadow-xl shadow-cyan-950/40 hover:scale-[1.02] transition-all"
-                  >
-                    {loading ? "INITIALIZING..." : "Initialize AI Sync"}
-                 </button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* TAB 2: NEURAL MATCH RESULTS */}
-          {activeTab === 'match' && (
-             <motion.div key="match" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}>
-                {experts.length > 0 ? (
-                   <MatchResultsCard experts={experts} />
-                ) : (
-                   <div className="p-20 text-center bg-white/5 border border-dashed border-white/10 rounded-[3rem]">
-                      <AlertTriangle size={48} className="text-slate-700 mx-auto mb-4" />
-                      <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">No active matches. Start AI Sync on Dashboard.</p>
-                   </div>
-                )}
-             </motion.div>
-          )}
-
-          {/* TAB 3: THE VAULT (MULTI-FILE UPLOAD) */}
-          {activeTab === 'vault' && (
-            <motion.div key="vault" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="space-y-8">
-              <div className="bg-white/5 border border-white/10 p-12 rounded-[3rem] text-center backdrop-blur-md">
-                {/* Hidden File Input */}
-                <input type="file" id="file-vault" className="hidden" onChange={handleFileUpload} />
-                
-                <label htmlFor="file-vault" className="cursor-pointer group block">
-                  <div className="w-20 h-20 bg-cyan-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-white/5 group-hover:border-cyan-500/50 transition-all shadow-inner">
-                    <Upload className="text-cyan-400" size={32} />
                   </div>
-                  <h3 className="text-2xl font-bold mb-2">Technical Repository</h3>
-                  <p className="text-slate-500 text-sm max-w-sm mx-auto leading-relaxed italic">
-                    Upload Resumes (PDF), Matrices (Excel), or Code Samples for Expert review.
-                  </p>
-                </label>
-              </div>
 
-              {/* Dynamic File Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {files.length > 0 ? files.map((file, i) => (
-                  <div key={i} className="p-5 bg-white/5 border border-white/10 rounded-2xl flex justify-between items-center group hover:bg-white/[0.07] transition-all">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-black/40 rounded-xl"><FileText className="text-blue-400" size={20} /></div>
-                      <div>
-                        <p className="text-sm font-bold text-white max-w-[150px] truncate">{file.name}</p>
-                        <p className="text-[9px] text-slate-500 font-black uppercase tracking-tighter">{file.type} • {file.size} • {file.date}</p>
+                  {/* Sync Button */}
+                  <button 
+                    onClick={() => { setActiveTab('match'); runRelevanceEngine(); }}
+                    disabled={isProcessing}
+                    className="w-full py-6 bg-gradient-to-br from-blue-600 to-emerald-600 rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] shadow-xl shadow-blue-950/40 hover:scale-[1.02] transition-all"
+                  >
+                    {isProcessing ? "INITIALIZING..." : "Initialize AI Sync"}
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* MATCH ENGINE TAB */}
+            {activeTab === 'match' && (
+              <motion.div key="match" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="max-w-5xl mx-auto">
+                <div className="mb-12 text-center">
+                  <Cpu size={48} className="text-emerald-400 mx-auto mb-6" />
+                  <h2 className="text-3xl font-black uppercase tracking-widest text-emerald-400">Relevance Engine</h2>
+                  <p className="text-sm text-slate-400 font-medium mt-4 max-w-lg mx-auto leading-relaxed">
+                    Review your AI-generated matches against verified Expert requirements.
+                  </p>
+                </div>
+
+                {experts.length > 0 ? (
+                  <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+                     <MatchResultsCard experts={experts} />
+                  </motion.div>
+                ) : (
+                  <div className="bg-black/40 border border-white/10 p-10 rounded-[3rem] backdrop-blur-md relative overflow-hidden text-center">
+                    <button 
+                      onClick={runRelevanceEngine} 
+                      disabled={isProcessing}
+                      className="relative group w-full py-8 rounded-3xl overflow-hidden border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/0 via-emerald-500/20 to-emerald-500/0 -translate-x-full group-hover:animate-[shimmer_2s_infinite]" />
+                      <div className="relative flex items-center justify-center gap-4 text-emerald-400 font-black tracking-[0.2em] uppercase text-lg">
+                        {isProcessing ? (
+                          <span className="animate-pulse flex items-center gap-3">
+                            <BrainCircuit className="animate-spin" /> Computing Neural Paths...
+                          </span>
+                        ) : (
+                          <><Zap size={24} /> Initiate Scan Sequence</>
+                        )}
+                      </div>
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* DATA VAULT TAB (Uploads & Files) */}
+            {activeTab === 'vault' && (
+              <motion.div key="vault" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="max-w-4xl mx-auto">
+                <div className="mb-8 text-center">
+                  <h2 className="text-2xl font-black uppercase tracking-widest text-blue-400">Secure Data Vault</h2>
+                  <p className="text-xs text-slate-400 font-medium mt-2">Upload your resumes and technical documents for AI parsing.</p>
+                </div>
+
+                <div className="space-y-8">
+                  {/* Upload Form */}
+                  <form onSubmit={handleUpload} className="bg-white/5 border border-white/10 p-8 rounded-[3rem] backdrop-blur-md flex flex-col items-center">
+                    <div className="w-full relative group cursor-pointer mb-8">
+                      <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-[2rem] opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="relative border-2 border-dashed border-blue-500/30 hover:border-blue-400 bg-black/40 rounded-[2rem] p-12 flex flex-col items-center justify-center transition-all">
+                        <input 
+                          type="file" 
+                          onChange={(e) => setFile(e.target.files[0])} 
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                        <UploadCloud size={48} className="text-blue-400 mb-4 group-hover:scale-110 transition-transform" />
+                        <p className="text-sm font-bold text-slate-300 tracking-widest uppercase text-center">
+                          {file ? file.name : "Drag & Drop or Click to Browse"}
+                        </p>
+                        <p className="text-[10px] text-slate-500 mt-2 font-black uppercase tracking-widest">PDF, DOCX, TXT</p>
                       </div>
                     </div>
-                    <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[8px] font-bold rounded-lg uppercase">Synced</div>
-                  </div>
-                )) : (
-                  <div className="md:col-span-2 p-10 border border-dashed border-white/5 rounded-2xl text-center text-slate-600 font-bold uppercase text-xs tracking-widest">
-                    No files detected in node storage.
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          )}
 
-          {/* TAB 4: PERFORMANCE */}
-          {activeTab === 'results' && (
-             <motion.div key="results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-32 text-center">
-                <BarChart3 size={64} className="mx-auto mb-6 text-slate-800" />
-                <h3 className="text-2xl font-bold text-slate-600 uppercase tracking-tighter">Metrics Pending</h3>
-                <button onClick={() => navigate('/result')} className="mt-4 text-cyan-400 font-bold uppercase tracking-widest text-xs hover:underline">
-                  Check Evaluation History
-                </button>
-             </motion.div>
-          )}
-        </AnimatePresence>
+                    <button 
+                      type="submit" 
+                      disabled={!file || isProcessing}
+                      className="w-full md:w-auto px-12 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 disabled:opacity-50 text-white font-black text-xs tracking-[0.2em] uppercase rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-blue-900/20 transition-all active:scale-[0.98]"
+                    >
+                      {isProcessing ? "TRANSMITTING..." : "UPLOAD TO VAULT"}
+                    </button>
+
+                    {uploadStatus && (
+                      <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-6 text-xs font-bold tracking-widest text-emerald-400 uppercase flex items-center gap-2">
+                        <CheckCircle2 size={14} /> {uploadStatus}
+                      </motion.p>
+                    )}
+                  </form>
+
+                  {/* File Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {files.length > 0 ? files.map((f, i) => (
+                      <div key={i} className="p-5 bg-white/5 border border-white/10 rounded-[1.5rem] flex justify-between items-center group hover:bg-white/[0.07] transition-all">
+                        <div className="flex items-center gap-4">
+                          <div className="p-3 bg-black/40 rounded-xl"><FileText className="text-blue-400" size={20} /></div>
+                          <div>
+                            <p className="text-sm font-bold text-white max-w-[150px] truncate">{f.name}</p>
+                            <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mt-1">{f.type} • {f.date}</p>
+                          </div>
+                        </div>
+                        <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[8px] font-black rounded-lg uppercase tracking-widest">Synced</div>
+                      </div>
+                    )) : (
+                      <div className="md:col-span-2 p-10 border border-dashed border-white/10 rounded-[2rem] text-center text-slate-500 font-bold uppercase text-xs tracking-widest">
+                        No files detected in node storage.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* PERFORMANCE TAB */}
+            {activeTab === 'results' && (
+               <motion.div key="results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-[60vh] flex flex-col items-center justify-center text-center">
+                 <BarChart3 size={64} className="mx-auto mb-6 text-slate-700 animate-pulse" />
+                 <h3 className="text-2xl font-black text-slate-600 uppercase tracking-widest mb-4">Metrics Pending</h3>
+                 <button onClick={() => navigate('/result')} className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-blue-400 font-black uppercase tracking-widest text-[10px] transition-all">
+                   Check Evaluation History
+                 </button>
+               </motion.div>
+            )}
+
+          </AnimatePresence>
+        </div>
       </main>
+
     </div>
   );
 };
