@@ -113,7 +113,7 @@ const CandidateDashboard = () => {
     }
   };
 
-  // --- NEURAL MATCHING ---
+  // --- NEURAL MATCHING (TOP #1 EXPERT ONLY) ---
   const runRelevanceEngine = async () => {
     setIsProcessing(true);
     try {
@@ -121,7 +121,24 @@ const CandidateDashboard = () => {
         skills: user.skills,
         username: user.name
       });
-      setExperts(res.data);
+      
+      // 1. Ensure the data is an array
+      const matchesArray = Array.isArray(res.data) ? res.data : [res.data];
+      
+      // 2. Sort the array from Highest Score to Lowest Score
+      const sortedMatches = matchesArray.sort((a, b) => {
+        const scoreA = a.match_score || a.similarity || a.score || 0;
+        const scoreB = b.match_score || b.similarity || b.score || 0;
+        return scoreB - scoreA;
+      });
+
+      // 3. Save ONLY the absolute top #1 result into state
+      if (sortedMatches.length > 0 && sortedMatches[0]) {
+        setExperts([sortedMatches[0]]);
+      } else {
+        setExperts([]);
+      }
+
     } catch (err) {
       console.error(err);
     } finally {
@@ -351,7 +368,7 @@ const CandidateDashboard = () => {
                   <Cpu size={48} className="text-emerald-400 mx-auto mb-6" />
                   <h2 className="text-3xl font-black uppercase tracking-widest text-emerald-400">Relevance Engine</h2>
                   <p className="text-sm text-slate-400 font-medium mt-4 max-w-lg mx-auto leading-relaxed">
-                    Review your AI-generated matches against verified Expert requirements.
+                    Review your Top #1 AI-generated match against verified Expert requirements.
                   </p>
                 </div>
 
