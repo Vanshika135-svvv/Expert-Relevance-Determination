@@ -1,282 +1,161 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { ArrowLeft, ShieldCheck, Activity, BrainCircuit } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Mic, MicOff, Video, VideoOff, MonitorUp, 
-  MessageSquare, Send, PhoneOff, Terminal, 
-  User, Sparkles, Activity, ShieldCheck 
-} from 'lucide-react';
 
 const Interview = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const jitsiContainerRef = useRef(null);
   
-  // Refs for Media Streams
-  const mainVideoRef = useRef(null);
-  const selfVideoRef = useRef(null);
-  const scrollRef = useRef(null);
+  // Start with loading screen ON
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Hardware & Session States
-  const [stream, setStream] = useState(null);
-  const [isMicOn, setIsMicOn] = useState(true);
-  const [isCamOn, setIsCamOn] = useState(true);
-  const [isSharing, setIsSharing] = useState(false);
-  const [timeElapsed, setTimeElapsed] = useState(0);
+  // Identify who is entering the room
+  const myName = localStorage.getItem('username') || 'Unknown Node';
+  const myRole = localStorage.getItem('role') || 'Candidate';
 
-  // Communication States
-  const [messages, setMessages] = useState([
-    { sender: 'System', text: 'Encrypted neural link established.', time: 'v1.4' }
-  ]);
-  const [currentMsg, setCurrentMsg] = useState('');
-  const [transcript, setTranscript] = useState([
-    "Node initialization sequence complete...",
-    "Awaiting Expert Board connection..."
-  ]);
+  // --- ROOM HANDSHAKE LOGIC ---
+  const targetCandidate = location.state?.target;
+  const roomBaseName = targetCandidate ? targetCandidate : myName;
 
-  const currentUser = localStorage.getItem("username") || "Candidate";
+  // Ensure room name is URL-safe for Jitsi
+  const sanitizedRoomName = `Nexus-SyncRoom-${roomBaseName.replace(/[^a-zA-Z0-9]/g, '')}`;
 
-  // --- 1. SESSION TIMER ---
-  useEffect(() => {
-    const timer = setInterval(() => setTimeElapsed(prev => prev + 1), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const formatTime = (seconds) => {
-    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const s = (seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
+  const handleDisconnect = () => {
+    if (myRole === 'Expert') {
+      navigate('/expert-dashboard');
+    } else {
+      navigate('/result');
+    }
   };
 
-  // --- 2. HARDWARE ACCESS (WebRTC Logic) ---
+  // --- NATIVE JITSI INITIALIZATION ---
   useEffect(() => {
-    startSession();
-    return () => stopAllMedia();
-  }, []);
+    let api = null;
 
-  const startSession = async () => {
-    try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: true, 
-        audio: true 
+    const loadJitsiScript = () => {
+      return new Promise((resolve) => {
+        if (window.JitsiMeetExternalAPI) {
+          resolve();
+          return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://meet.jit.si/external_api.js';
+        script.async = true;
+        script.onload = resolve;
+        document.body.appendChild(script);
       });
-      setStream(mediaStream);
-      if (mainVideoRef.current) mainVideoRef.current.srcObject = mediaStream;
-      if (selfVideoRef.current) selfVideoRef.current.srcObject = mediaStream;
-    } catch (err) {
-      setTranscript(prev => ["ERROR: Media access denied. Check permissions.", ...prev]);
-    }
-  };
-
-  const stopAllMedia = () => {
-    if (stream) stream.getTracks().forEach(track => track.stop());
-  };
-
-  const toggleMic = () => {
-    if (stream) {
-      stream.getAudioTracks()[0].enabled = !isMicOn;
-      setIsMicOn(!isMicOn);
-    }
-  };
-
-  const toggleCam = () => {
-    if (stream) {
-      stream.getVideoTracks()[0].enabled = !isCamOn;
-      setIsCamOn(!isCamOn);
-    }
-  };
-
-  const handleScreenShare = async () => {
-    try {
-      if (!isSharing) {
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        if (mainVideoRef.current) mainVideoRef.current.srcObject = screenStream;
-        setIsSharing(true);
-        setTranscript(prev => ["User started screen broadcast...", ...prev]);
-
-        screenStream.getVideoTracks()[0].onended = () => {
-          setIsSharing(false);
-          if (mainVideoRef.current) mainVideoRef.current.srcObject = stream;
-        };
-      } else {
-        setIsSharing(false);
-        if (mainVideoRef.current) mainVideoRef.current.srcObject = stream;
-      }
-    } catch (err) {
-      console.log("Sharing cancelled");
-    }
-  };
-
-  // --- 3. MESSAGING & TRANSCRIPT LOGIC ---
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (!currentMsg.trim()) return;
-
-    const newMsg = {
-      sender: currentUser,
-      text: currentMsg,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
-    setMessages([...messages, newMsg]);
-    setTranscript(prev => [`${currentUser}: ${currentMsg}`, ...prev]);
-    setCurrentMsg('');
-  };
+    const initializeJitsi = async () => {
+      await loadJitsiScript();
+
+      const domain = 'meet.jit.si';
+      const options = {
+        roomName: sanitizedRoomName,
+        width: '100%',
+        height: '100%',
+        parentNode: jitsiContainerRef.current,
+        userInfo: {
+          displayName: myName,
+        },
+        configOverwrite: {
+          startWithAudioMuted: false,
+          startWithVideoMuted: false,
+          prejoinPageEnabled: false, 
+        },
+        interfaceConfigOverwrite: {
+          DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
+          SHOW_CHROME_EXTENSION_BANNER: false,
+          SHOW_JITSI_WATERMARK: false,
+        },
+      };
+
+      api = new window.JitsiMeetExternalAPI(domain, options);
+
+      // FIX: Remove loading screen IMMEDIATELY so the user can click the camera permission prompt!
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 1000);
+
+      api.addListener('videoConferenceLeft', () => {
+        handleDisconnect();
+      });
+    };
+
+    initializeJitsi();
+
+    return () => {
+      if (api) api.dispose();
+    };
+  }, [sanitizedRoomName, myName]);
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white p-4 md:p-6 flex flex-col font-sans selection:bg-cyan-500 overflow-hidden">
+    <div className="h-screen w-full bg-[#020617] text-white flex flex-col font-sans overflow-hidden selection:bg-cyan-500">
       
-      {/* Dynamic Background Glow */}
-      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-[50vw] h-[50vw] bg-blue-500/5 blur-[150px] rounded-full" />
-        <div className="absolute bottom-0 right-1/4 w-[40vw] h-[40vw] bg-cyan-500/5 blur-[120px] rounded-full" />
+      {/* Background Glow */}
+      <div className="absolute inset-0 -z-10 pointer-events-none">
+        <div className="absolute top-[-10%] left-[20%] w-[40vw] h-[40vw] bg-cyan-600/10 blur-[120px] rounded-full mix-blend-screen" />
+        <div className="absolute bottom-[-10%] right-[10%] w-[30vw] h-[30vw] bg-emerald-500/10 blur-[100px] rounded-full mix-blend-screen" />
       </div>
 
-      {/* --- HEADER --- */}
-      <header className="flex justify-between items-center mb-6 bg-white/5 border border-white/10 p-4 rounded-3xl backdrop-blur-xl">
+      {/* Top Navigation Bar */}
+      <header className="h-24 px-6 md:px-10 border-b border-white/5 bg-white/[0.02] backdrop-blur-xl flex items-center justify-between shrink-0 relative z-20">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 px-4 py-1.5 rounded-full">
-            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-            <span className="text-red-400 font-black text-[10px] tracking-widest uppercase">Live Session</span>
-          </div>
-          <span className="text-cyan-400 font-mono font-bold tracking-widest">{formatTime(timeElapsed)}</span>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <ShieldCheck className="text-emerald-400" size={18} />
-          <h1 className="text-xs font-black tracking-[0.3em] text-slate-400 uppercase hidden md:block">
-            Secure Neural Protocol
-          </h1>
-        </div>
-      </header>
-
-      {/* --- MAIN INTERFACE GRID --- */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 mb-24 overflow-hidden">
-        
-        {/* VIDEO PANEL (Left 3 Columns) */}
-        <div className="lg:col-span-3 relative group">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}
-            className="w-full h-full bg-black/60 border border-white/10 rounded-[3rem] overflow-hidden relative shadow-2xl backdrop-blur-md"
-          >
-            {/* Main Video Feed (Expert or Screen) */}
-            <video 
-              ref={mainVideoRef} 
-              autoPlay 
-              playsInline 
-              className="w-full h-full object-cover"
-            />
-
-            {/* Self-View Overlay (Picture-in-Picture) */}
-            <div className="absolute bottom-8 right-8 w-48 h-32 md:w-64 md:h-40 bg-slate-900 rounded-[2rem] border-2 border-white/10 overflow-hidden shadow-2xl z-20">
-               <AnimatePresence>
-                 {isCamOn ? (
-                    <video ref={selfVideoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
-                 ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-white/5">
-                       <User size={32} className="text-slate-700" />
-                    </div>
-                 )}
-               </AnimatePresence>
-               <div className="absolute bottom-3 left-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border border-white/10">
-                 Local Node: {currentUser}
-               </div>
-            </div>
-
-            {/* Expert Tag */}
-            <div className="absolute top-8 left-8 flex gap-3">
-               <span className="px-5 py-2.5 bg-black/60 backdrop-blur-xl rounded-2xl text-[10px] font-black border border-white/10 uppercase tracking-[0.2em] flex items-center gap-2">
-                  <Activity size={14} className="text-cyan-400" /> Remote Expert Feed
-               </span>
-               {isSharing && (
-                 <motion.span initial={{x: -20, opacity: 0}} animate={{x: 0, opacity: 1}} className="px-5 py-2.5 bg-blue-600/80 backdrop-blur-xl rounded-2xl text-[10px] font-black border border-blue-400/50 uppercase tracking-[0.2em] animate-pulse">
-                   Transmitting Screen
-                 </motion.span>
-               )}
-            </div>
-          </motion.div>
-        </div>
-
-        {/* SIDEBAR (Right Column) */}
-        <div className="flex flex-col gap-6 h-full overflow-hidden">
-          
-          {/* Live Transcript View */}
-          <div className="flex-1 bg-white/5 border border-white/10 rounded-[2.5rem] p-6 flex flex-col backdrop-blur-md shadow-xl overflow-hidden">
-            <h3 className="text-[10px] font-black text-cyan-400 mb-4 flex items-center gap-2 uppercase tracking-[0.2em]">
-              <Terminal size={14} /> Neural Transcript
-            </h3>
-            <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
-              {transcript.map((line, i) => (
-                <motion.p key={i} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="text-[11px] text-slate-400 leading-relaxed font-mono">
-                  <span className="text-cyan-800 mr-2">[{new Date().toLocaleTimeString([], {second:'2-digit'})}]</span> {line}
-                </motion.p>
-              ))}
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-emerald-500 p-[1px] shadow-[0_0_20px_rgba(6,182,212,0.3)]">
+            <div className="w-full h-full bg-[#020617] rounded-xl flex items-center justify-center">
+              <ShieldCheck className="text-cyan-400" size={24} />
             </div>
           </div>
-
-          {/* Team Comms (Messaging) */}
-          <div className="flex-1 bg-white/5 border border-white/10 rounded-[2.5rem] p-6 flex flex-col backdrop-blur-md shadow-xl overflow-hidden">
-            <h3 className="text-[10px] font-black text-blue-400 mb-4 flex items-center gap-2 uppercase tracking-[0.2em]">
-              <MessageSquare size={14} /> Team Comms
-            </h3>
-            
-            <div className="flex-1 space-y-4 mb-4 overflow-y-auto pr-2 custom-scrollbar">
-               {messages.map((msg, i) => (
-                 <div key={i} className={`flex flex-col ${msg.sender === currentUser ? 'items-end' : 'items-start'}`}>
-                   <p className="text-[8px] font-black text-slate-500 uppercase mb-1 px-1">{msg.sender}</p>
-                   <div className={`p-3 rounded-2xl text-[12px] max-w-[90%] ${
-                     msg.sender === currentUser ? 'bg-blue-600/20 text-blue-100 border border-blue-500/30' : 'bg-white/5 text-slate-300'
-                   }`}>
-                     {msg.text}
-                   </div>
-                 </div>
-               ))}
-            </div>
-
-            <form onSubmit={handleSendMessage} className="relative">
-              <input 
-                type="text" 
-                value={currentMsg}
-                onChange={(e) => setCurrentMsg(e.target.value)}
-                placeholder="Transmit message..."
-                className="w-full bg-black/40 border border-white/10 rounded-2xl py-3.5 pl-5 pr-12 text-xs outline-none focus:border-blue-500/50 transition-all font-medium"
-              />
-              <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-blue-400 hover:text-blue-300">
-                <Send size={16} />
-              </button>
-            </form>
+          <div>
+            <h1 className="text-xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400">
+              Live Neural Sync
+            </h1>
+            <p className="text-[10px] text-emerald-400 font-black uppercase tracking-[0.3em] flex items-center gap-2 mt-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Secure P2P Connection
+            </p>
           </div>
-        </div>
-      </div>
-
-      {/* --- CONTROL DOCK --- */}
-      <footer className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-[#0a0f1e]/80 backdrop-blur-3xl border border-white/10 p-4 rounded-[2.5rem] flex items-center gap-6 shadow-[0_0_50px_rgba(0,0,0,0.8)] z-50">
-        <div className="flex items-center gap-3 px-6 border-r border-white/10">
-          <button 
-            onClick={toggleMic}
-            className={`p-4 rounded-2xl transition-all ${isMicOn ? 'bg-white/5 hover:bg-white/10 text-slate-300' : 'bg-red-500/20 text-red-500 border border-red-500/30 shadow-[0_0_20px_rgba(239,68,68,0.2)]'}`}
-          >
-            {isMicOn ? <Mic size={22} /> : <MicOff size={22} />}
-          </button>
-          <button 
-            onClick={toggleCam}
-            className={`p-4 rounded-2xl transition-all ${isCamOn ? 'bg-white/5 hover:bg-white/10 text-slate-300' : 'bg-red-500/20 text-red-500 border border-red-500/30 shadow-[0_0_20px_rgba(239,68,68,0.2)]'}`}
-          >
-            {isCamOn ? <Video size={22} /> : <VideoOff size={22} />}
-          </button>
-          <button 
-            onClick={handleScreenShare}
-            className={`p-4 rounded-2xl transition-all ${isSharing ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.2)]' : 'bg-white/5 hover:bg-white/10 text-slate-300'}`}
-          >
-            <MonitorUp size={22} />
-          </button>
         </div>
 
         <button 
-          onClick={() => navigate('/result')}
-          className="px-10 py-4 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-black uppercase tracking-[0.2em] rounded-2xl flex items-center gap-3 transition-all shadow-xl shadow-red-950/40 active:scale-95 text-xs"
+          onClick={handleDisconnect}
+          className="flex items-center gap-3 px-6 py-3 bg-red-500/10 hover:bg-red-500 hover:text-black border border-red-500/30 text-red-400 font-black text-[10px] md:text-xs uppercase tracking-[0.2em] rounded-xl transition-all shadow-[0_0_15px_rgba(239,68,68,0.2)] active:scale-95"
         >
-          <PhoneOff size={18} /> End Sync
+          <ArrowLeft size={16} /> Terminate Session
         </button>
-      </footer>
+      </header>
+
+      {/* Video Room Container */}
+      <main className="flex-1 p-6 md:p-10 relative flex flex-col">
+        
+        {/* Loading Overlay */}
+        <AnimatePresence>
+          {isLoading && (
+            <motion.div 
+              initial={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#020617]/90 backdrop-blur-md rounded-[2.5rem] m-6 md:m-10"
+            >
+              <div className="w-24 h-24 bg-cyan-500/20 rounded-full flex items-center justify-center mb-6 animate-pulse border border-cyan-500/40 shadow-[0_0_30px_rgba(6,182,212,0.4)]">
+                <BrainCircuit size={48} className="text-cyan-400" />
+              </div>
+              <h2 className="text-2xl font-black uppercase tracking-widest text-cyan-400 mb-2">Establishing Link...</h2>
+              <p className="text-xs text-slate-400 uppercase tracking-[0.3em] font-bold flex items-center gap-2">
+                <Activity size={14} className="animate-spin" /> Booting Video Matrix
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Native Jitsi Container */}
+        <div 
+          className="flex-1 w-full rounded-[2.5rem] overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(6,182,212,0.15)] relative z-0 bg-black/60 backdrop-blur-xl"
+        >
+          {/* Jitsi automatically injects its iframe into this div */}
+          <div ref={jitsiContainerRef} className="w-full h-full" />
+        </div>
+      </main>
 
     </div>
   );
