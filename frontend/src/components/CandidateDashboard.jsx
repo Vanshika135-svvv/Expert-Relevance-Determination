@@ -88,7 +88,7 @@ const CandidateDashboard = () => {
       if (res.data.status === "Success") {
         setUploadStatus('Data securely logged in Vault.');
         setFile(null);
-        fetchUserFiles();
+        fetchUserFiles(); // Refresh the grid
       }
     } catch (err) {
       setUploadStatus('Upload failed. Check network link.');
@@ -203,7 +203,7 @@ const CandidateDashboard = () => {
             <Sparkles size={14} /> Absolute Top Match
           </div>
           <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-widest">
-            <Network size={14} /> Neural Link Established
+            <Network size={14} /> Neural Link Ready
           </div>
         </div>
 
@@ -272,7 +272,7 @@ const CandidateDashboard = () => {
               </div>
             </div>
 
-            {/* Action Button */}
+            {/* ACTION BUTTON - ONLY WAY IN! */}
             <button 
               onClick={() => handleJoinSync(expertName)}
               className="w-full py-5 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-black font-black uppercase tracking-[0.2em] text-sm rounded-2xl flex items-center justify-center gap-3 transition-all shadow-[0_0_40px_rgba(16,185,129,0.3)] hover:shadow-[0_0_60px_rgba(16,185,129,0.5)] active:scale-[0.98]"
@@ -292,7 +292,7 @@ const CandidateDashboard = () => {
       {/* Background Glow */}
       <div className="absolute inset-0 -z-10 pointer-events-none">
         <div className="absolute top-[20%] left-[-10%] w-[40vw] h-[40vw] bg-blue-600/10 blur-[120px] rounded-full mix-blend-screen" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[30vw] h-[30vw] bg-emerald-500/10 blur-[100px] rounded-full mix-blend-screen" />
+        <div className="absolute bottom-[-10%] right-[10%] w-[30vw] h-[30vw] bg-emerald-500/10 blur-[100px] rounded-full mix-blend-screen" />
       </div>
 
       {/* --- SIDEBAR --- */}
@@ -348,7 +348,7 @@ const CandidateDashboard = () => {
       {/* --- MAIN CONTENT AREA --- */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
         
-        {/* Topbar */}
+        {/* Topbar (CONFUSING BUTTON REMOVED!) */}
         <header className="h-24 px-6 md:px-10 flex items-center justify-between border-b border-white/5 bg-white/[0.02] backdrop-blur-md shrink-0">
           <div>
             <h1 className="text-xl md:text-2xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-500">
@@ -360,12 +360,6 @@ const CandidateDashboard = () => {
           </div>
           
           <div className="flex items-center gap-6">
-            <button 
-              onClick={() => navigate('/interview')}
-              className="hidden md:flex px-6 py-3 bg-gradient-to-r from-blue-600 to-emerald-600 text-white font-black rounded-xl text-[10px] uppercase tracking-widest hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all items-center gap-2"
-            >
-              <Mic2 size={16} /> Join Live Board
-            </button>
             <div className="w-10 h-10 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center animate-pulse shrink-0">
               <BrainCircuit className="text-blue-400" size={18} />
             </div>
