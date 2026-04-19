@@ -6,7 +6,7 @@ import {
   LogOut, ChevronLeft, ChevronRight, 
   Search, ShieldCheck, UploadCloud, FileText,
   Zap, BrainCircuit, CheckCircle2, Sparkles,
-  BarChart3, User, Target, Mic2, Star, Clock, Network
+  BarChart3, AlertTriangle, User, Target, Mic2, Star, Clock, Network
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -30,6 +30,9 @@ const CandidateDashboard = () => {
   const [aiFeedback, setAiFeedback] = useState("");
   const [auditing, setAuditing] = useState(false);
 
+  // Simulated live ping for the new top header UI
+  const [ping, setPing] = useState(14);
+
   // --- INITIALIZATION ---
   useEffect(() => {
     const storedName = localStorage.getItem("username") || "Verified Candidate";
@@ -38,6 +41,12 @@ const CandidateDashboard = () => {
     
     setUser({ name: storedName, skills: storedSkills, role: storedRole });
     if (storedSkills) setIsVerified(true);
+
+    // Minor ping fluctuation effect for the telemetry UI
+    const pingInterval = setInterval(() => {
+      setPing(Math.floor(Math.random() * (22 - 12 + 1) + 12));
+    }, 3000);
+    return () => clearInterval(pingInterval);
   }, []);
 
   useEffect(() => {
@@ -348,7 +357,7 @@ const CandidateDashboard = () => {
       {/* --- MAIN CONTENT AREA --- */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
         
-        {/* Topbar (CONFUSING BUTTON REMOVED!) */}
+        {/* Topbar */}
         <header className="h-24 px-6 md:px-10 flex items-center justify-between border-b border-white/5 bg-white/[0.02] backdrop-blur-md shrink-0">
           <div>
             <h1 className="text-xl md:text-2xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-500">
@@ -359,7 +368,28 @@ const CandidateDashboard = () => {
             </p>
           </div>
           
+          {/* REPLACED BUTTON WITH TELEMETRY WIDGET */}
           <div className="flex items-center gap-6">
+            
+            {/* Dynamic Telemetry Badge */}
+            <div className="hidden md:flex items-center gap-4 px-5 py-2.5 bg-black/40 border border-white/10 rounded-2xl backdrop-blur-md shadow-inner">
+              <div className="flex items-center gap-2">
+                <Network size={14} className="text-emerald-400 animate-pulse" />
+                <div className="flex flex-col">
+                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Latency</span>
+                  <span className="text-xs font-bold text-emerald-400 font-mono leading-none">{ping}ms</span>
+                </div>
+              </div>
+              <div className="w-px h-6 bg-white/10" />
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={14} className="text-blue-400" />
+                <div className="flex flex-col">
+                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Protocol</span>
+                  <span className="text-xs font-bold text-white tracking-widest uppercase leading-none">Aegis V2</span>
+                </div>
+              </div>
+            </div>
+
             <div className="w-10 h-10 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center animate-pulse shrink-0">
               <BrainCircuit className="text-blue-400" size={18} />
             </div>
