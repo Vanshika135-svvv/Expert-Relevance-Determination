@@ -52,7 +52,8 @@ users_col = db['users']
 interviews_col = db['interviews']
 vault_col = db['vault'] # Metadata for general uploaded files
 assessments_col = db['assessments'] 
-resumes_col = db['resumes'] # NEW: Collection for Primary Resumes
+resumes_col = db['resumes'] # Collection for Primary Resumes
+notifications_col = db['notifications'] # NEW: Centralized Alerts & Notifications
 
 # Initialize MongoDB GridFS Bucket 
 fs = GridFS(db)
@@ -67,7 +68,7 @@ def index():
     return jsonify({
         "status": "Success", 
         "message": "Nexus RAC Flask Backend Running!",
-        "version": "2.2.0 (Resume Sync Enabled)"
+        "version": "2.4.0 (Notification Matrix Enabled)"
     })
 
 
@@ -146,7 +147,47 @@ def audit_profile():
     return jsonify({"feedback": feedback})
 
 
-# --- NEW: PRIMARY RESUME UPLOAD DIRECTLY TO GRIDFS ---
+# --- NEW: SYSTEM NOTIFICATIONS (GET, POST, READ) ---
+@app.route('/api/notifications', methods=['POST'])
+def send_notification():
+    try:
+        data = request.json
+        notifications_col.insert_one({
+            "recipient": data.get("recipient"), # Username or 'ALL'
+            "sender": data.get("sender", "System"),
+            "message": data.get("message"),
+            "type": data.get("type", "info"), # info, alert, success
+            "read": False,
+            "createdAt": datetime.utcnow()
+        })
+        return jsonify({"status": "Success"})
+    except Exception as e:
+        return jsonify({"status": "Error", "message": str(e)}), 500
+
+@app.route('/api/notifications/<username>', methods=['GET'])
+def get_notifications(username):
+    try:
+        # Fetch notifications for this user OR system broadcasts ('ALL')
+        nots = list(notifications_col.find({
+            "$or": [{"recipient": username}, {"recipient": "ALL"}]
+        }).sort("createdAt", -1).limit(20))
+        
+        for n in nots:
+            n["_id"] = str(n["_id"])
+        return jsonify(nots)
+    except Exception as e:
+        return jsonify({"status": "Error", "message": str(e)}), 500
+
+@app.route('/api/notifications/read/<notif_id>', methods=['PUT'])
+def mark_notification_read(notif_id):
+    try:
+        notifications_col.update_one({"_id": ObjectId(notif_id)}, {"$set": {"read": True}})
+        return jsonify({"status": "Success"})
+    except Exception as e:
+        return jsonify({"status": "Error", "message": str(e)}), 500
+
+
+# --- PRIMARY RESUME: UPLOAD DIRECTLY TO GRIDFS ---
 @app.route('/api/upload_resume', methods=['POST'])
 def upload_resume():
     try:
@@ -161,28 +202,45 @@ def upload_resume():
 
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
-            
             file.seek(0, os.SEEK_END)
             file_length = file.tell()
             file.seek(0)
             
-            # Put file directly into MongoDB GridFS bucket
             file_id = fs.put(file, filename=filename, metadata={"username": username, "type": "primary_resume"}, content_type=file.content_type)
 
-            # Store metadata safely in the NEW Resumes collection
             resumes_col.insert_one({
-                "username": username,
-                "filename": filename,
-                "gridfs_id": file_id,
-                "upload_date": datetime.utcnow(),
-                "size": f"{file_length / 1024:.2f} KB"
+                "username": username, "filename": filename, "gridfs_id": file_id,
+                "upload_date": datetime.utcnow(), "size": f"{file_length / 1024:.2f} KB"
             })
-
             return jsonify({"status": "Success", "filename": filename})
-        
         return jsonify({"status": "Error", "message": "File type not allowed"}), 400
     except Exception as e:
         return jsonify({"status": "Error", "message": str(e)}), 500
+
+
+# --- PRIMARY RESUME: RETRIEVE LIST ---
+@app.route('/api/resumes/<username>', methods=['GET'])
+def get_user_resumes(username):
+    try:
+        user_resumes = list(resumes_col.find({"username": username}).sort("upload_date", -1))
+        for r in user_resumes:
+            r['_id'] = str(r['_id'])
+            r['gridfs_id'] = str(r.get('gridfs_id', r['_id'])) 
+        return jsonify(user_resumes)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# --- PRIMARY RESUME: DELETE ---
+@app.route('/api/resumes/delete/<file_id>', methods=['DELETE'])
+def delete_resume(file_id):
+    try:
+        try: fs.delete(ObjectId(file_id))
+        except: pass 
+        resumes_col.delete_one({"$or": [{"gridfs_id": ObjectId(file_id)}, {"_id": ObjectId(file_id)}]})
+        return jsonify({"status": "Success", "message": "Resume deleted securely."})
+    except Exception as e:
+        return jsonify({"status": "Error", "message": "Failed to delete resume."}), 500
 
 
 # --- SECURE FILE VAULT: UPLOAD DIRECTLY TO MONGODB GRIDFS ---
@@ -200,7 +258,6 @@ def upload_file():
 
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
-            
             file.seek(0, os.SEEK_END)
             file_length = file.tell()
             file.seek(0)
@@ -208,15 +265,10 @@ def upload_file():
             file_id = fs.put(file, filename=filename, metadata={"username": username}, content_type=file.content_type)
 
             vault_col.insert_one({
-                "username": username,
-                "filename": filename,
-                "gridfs_id": file_id,
-                "upload_date": datetime.utcnow(),
-                "size": f"{file_length / 1024:.2f} KB"
+                "username": username, "filename": filename, "gridfs_id": file_id,
+                "upload_date": datetime.utcnow(), "size": f"{file_length / 1024:.2f} KB"
             })
-
             return jsonify({"status": "Success", "filename": filename})
-        
         return jsonify({"status": "Error", "message": "File type not allowed"}), 400
     except Exception as e:
         return jsonify({"status": "Error", "message": str(e)}), 500
@@ -232,11 +284,10 @@ def get_vault_files(username):
             f['gridfs_id'] = str(f.get('gridfs_id', f['_id'])) 
         return jsonify(user_files)
     except Exception as e:
-        print(f"Vault Fetch Error: {e}")
         return jsonify({"error": str(e)}), 500
 
 
-# --- VIEW FILE DIRECTLY FROM MONGODB ---
+# --- VIEW FILE DIRECTLY FROM MONGODB (WORKS FOR VAULT & RESUMES) ---
 @app.route('/api/vault/view/<file_id>', methods=['GET'])
 def view_file(file_id):
     try:
@@ -248,24 +299,18 @@ def view_file(file_id):
             as_attachment=False 
         )
     except Exception as e:
-        print(f"Error serving file: {e}")
         return jsonify({"error": "File not found or corrupted. May be a legacy file."}), 404
 
 
-# --- DELETE FILE FROM MONGODB ---
+# --- DELETE VAULT FILE FROM MONGODB ---
 @app.route('/api/vault/delete/<file_id>', methods=['DELETE'])
 def delete_file(file_id):
     try:
-        try:
-            fs.delete(ObjectId(file_id))
-        except:
-            pass 
-        
+        try: fs.delete(ObjectId(file_id))
+        except: pass 
         vault_col.delete_one({"$or": [{"gridfs_id": ObjectId(file_id)}, {"_id": ObjectId(file_id)}]})
-        
         return jsonify({"status": "Success", "message": "File deleted securely."})
     except Exception as e:
-        print(f"Delete Error: {e}")
         return jsonify({"status": "Error", "message": "Failed to delete file."}), 500
 
 
@@ -274,12 +319,8 @@ def delete_file(file_id):
 def create_board():
     data = request.get_json()
     interviews_col.insert_one({
-        "boardSubject": data['subject'], 
-        "boardDate": data['date'], 
-        "status": "Live",
-        "assignedExpert": "Pending Match", 
-        "candidateName": "Not Assigned", 
-        "createdAt": datetime.utcnow()
+        "boardSubject": data['subject'], "boardDate": data['date'], "status": "Live",
+        "assignedExpert": "Pending Match", "candidateName": "Not Assigned", "createdAt": datetime.utcnow()
     })
     return jsonify({"status": "Success"})
 
@@ -319,10 +360,8 @@ def match_expert():
             score = row['relevance_score']
             if 10.0 <= score <= 100.0:
                 results.append({
-                    "id": int(index), 
-                    "expert_name": str(row[name_col]),
-                    "domain": str(row[sub_col]), 
-                    "score": float(score)
+                    "id": int(index), "expert_name": str(row[name_col]),
+                    "domain": str(row[sub_col]), "score": float(score)
                 })
 
         results = sorted(results, key=lambda x: x['score'], reverse=True)
@@ -338,11 +377,8 @@ def save_assessment():
     try:
         data = request.get_json()
         assessments_col.insert_one({
-            "expert_name": data.get('expert_name'), 
-            "candidate_name": data.get('candidate_name'),
-            "score": data.get('score'), 
-            "remarks": data.get('remarks', ''), 
-            "timestamp": datetime.utcnow()
+            "expert_name": data.get('expert_name'), "candidate_name": data.get('candidate_name'),
+            "score": data.get('score'), "remarks": data.get('remarks', ''), "timestamp": datetime.utcnow()
         })
         return jsonify({"status": "Success", "message": "Assessment recorded securely."})
     except Exception as e:
@@ -354,13 +390,10 @@ def save_assessment():
 def get_candidate_assessment(candidate_name):
     try:
         assessment = assessments_col.find_one(
-            {"candidate_name": candidate_name}, 
-            sort=[("timestamp", -1)], 
-            projection={"_id": 0}
+            {"candidate_name": candidate_name}, sort=[("timestamp", -1)], projection={"_id": 0}
         )
         if assessment:
             return jsonify({"status": "Success", "data": assessment})
-            
         return jsonify({"status": "Pending", "message": "No assessment found yet."}), 404
     except Exception as e:
         return jsonify({"status": "Error", "message": "Failed to fetch assessment."}), 500

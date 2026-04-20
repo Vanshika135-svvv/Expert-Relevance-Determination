@@ -5,7 +5,7 @@ import {
   Users, Activity, Calendar, Settings, 
   LogOut, ChevronLeft, ChevronRight, 
   Search, ShieldCheck, Video, CheckCircle2,
-  Clock, BrainCircuit, ClipboardCheck, Send
+  Clock, BrainCircuit, ClipboardCheck, Send, Bell
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -26,14 +26,17 @@ const ExpertDashboard = () => {
   const [submitStatus, setSubmitStatus] = useState({ message: '', type: '' });
   const [evalLoading, setEvalLoading] = useState(false);
 
+  // --- NEW: NOTIFICATION STATES ---
+  const [notifications, setNotifications] = useState([]);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+
   const expertName = localStorage.getItem('username') || 'Verified Expert';
 
   // --- AUTOMATED ASSESSMENT PRE-FILL LOGIC ---
   useEffect(() => {
     // If the router state contains 'autoOpenAssessment', it means we just left a meeting!
     if (location.state?.autoOpenAssessment) {
-      setActiveTab('assessments'); // Auto-switch to the form tab
-      
+      setActiveTab('assessments'); 
       setEvaluation(prev => ({ 
         ...prev, 
         candidateName: location.state.evaluatedCandidate || "" 
@@ -44,7 +47,6 @@ const ExpertDashboard = () => {
     }
   }, [location.state, navigate, location.pathname]);
 
-  // Fetch Live Queue Data
   useEffect(() => {
     setTimeout(() => {
       setQueue([
@@ -54,6 +56,11 @@ const ExpertDashboard = () => {
       ]);
       setLoadingQueue(false);
     }, 1500);
+
+    // Initial Fetch & Polling for Expert Notifications
+    fetchNotifications();
+    const notifInterval = setInterval(fetchNotifications, 10000);
+    return () => clearInterval(notifInterval);
   }, []);
 
   const handleLogout = () => {
@@ -61,19 +68,46 @@ const ExpertDashboard = () => {
     navigate('/login');
   };
 
-  const handleJoinSync = (candidateName) => {
+  // --- SEND NOTIFICATION TO CANDIDATE ON JOIN ---
+  const handleJoinSync = async (candidateName) => {
+    try {
+      await axios.post('http://localhost:5000/api/notifications', {
+        recipient: candidateName,
+        sender: expertName,
+        message: `${expertName} has initialized the Neural Sync room. Please join immediately.`,
+        type: "alert"
+      });
+    } catch (err) {
+      console.error("Failed to ping candidate.");
+    }
+    
     navigate('/interview', { state: { target: candidateName } });
   };
 
-  // --- LIVE BACKEND EVALUATION SUBMISSION ---
+  const fetchNotifications = async () => {
+    try {
+      const res = await axios.get(`http://localhost:5000/api/notifications/${expertName}`);
+      setNotifications(res.data);
+    } catch (err) {
+      console.error("Failed to fetch notifications");
+    }
+  };
+
+  const markNotificationRead = async (id) => {
+    try {
+      await axios.put(`http://localhost:5000/api/notifications/read/${id}`);
+      fetchNotifications();
+    } catch (err) {
+      console.error("Failed to mark read");
+    }
+  };
+
   const submitScore = async (e) => {
     if (e) e.preventDefault();
-
     if (!evaluation.candidateName) {
       setSubmitStatus({ message: 'Candidate name is required.', type: 'error' });
       return;
     }
-
     setEvalLoading(true);
     setSubmitStatus({ message: '', type: '' });
 
@@ -88,18 +122,17 @@ const ExpertDashboard = () => {
       if (res.data.status === "Success" || res.status === 200) {
         setSubmitStatus({ message: 'Evaluation Encrypted & Saved to Database!', type: 'success' });
         setEvaluation({ candidateName: '', score: 5, remarks: '' }); 
-        
         setTimeout(() => setSubmitStatus({ message: '', type: '' }), 3000);
       }
     } catch (err) {
-      console.error("Failed to log assessment:", err);
       setSubmitStatus({ message: 'Sync Failed: Could not connect to MongoDB.', type: 'error' });
     } finally {
       setEvalLoading(false);
     }
   };
 
-  // --- Reusable Sidebar Item ---
+  const unreadCount = notifications.filter(n => !n.read).length;
+
   const SidebarItem = ({ icon: Icon, label, id }) => (
     <button
       onClick={() => setActiveTab(id)}
@@ -200,6 +233,42 @@ const ExpertDashboard = () => {
           </div>
           
           <div className="flex items-center gap-6">
+            
+            {/* NOTIFICATION WIDGET */}
+            <div className="relative">
+              <button onClick={() => setIsNotifOpen(!isNotifOpen)} className="relative p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all border border-white/10">
+                <Bell size={18} className="text-slate-300" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-[#020617] animate-pulse"></span>
+                )}
+              </button>
+
+              <AnimatePresence>
+                {isNotifOpen && (
+                  <motion.div initial={{opacity:0, y:10, scale:0.95}} animate={{opacity:1,y:0, scale:1}} exit={{opacity:0,y:10, scale:0.95}} className="absolute right-0 mt-4 w-80 bg-[#0B1021]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] z-50 overflow-hidden">
+                    <div className="p-4 border-b border-white/5 bg-white/5 flex justify-between items-center">
+                      <h3 className="text-xs font-black uppercase tracking-widest text-white">System Alerts</h3>
+                      <span className="text-[9px] bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded uppercase font-bold">{unreadCount} New</span>
+                    </div>
+                    <div className="max-h-80 overflow-y-auto custom-scrollbar p-2 space-y-1">
+                      {notifications.length === 0 ? (
+                        <div className="p-6 text-center text-slate-500 text-xs font-bold uppercase tracking-widest">No alerts detected.</div>
+                      ) : (
+                        notifications.map(n => (
+                          <div key={n._id} onClick={() => markNotificationRead(n._id)} className={`p-4 rounded-xl cursor-pointer transition-all ${n.read ? 'bg-transparent opacity-60 hover:bg-white/5' : 'bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20'}`}>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1 flex justify-between">
+                              {n.sender} <span className="text-slate-500">{new Date(n.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                            </p>
+                            <p className="text-sm font-medium text-slate-200 leading-snug">{n.message}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             <div className="relative group hidden md:block">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
               <input 
@@ -415,7 +484,7 @@ const ExpertDashboard = () => {
               </motion.div>
             )}
 
-            {/* PLACEHOLDERS FOR OTHER TABS */}
+            {/* SETTINGS / OFFLINE TABS */}
             {(activeTab === 'schedule' || activeTab === 'settings') && (
               <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-[50vh] flex flex-col items-center justify-center text-center max-w-md mx-auto">
                 <Settings size={48} className="text-slate-700 mb-6 animate-spin-slow" />

@@ -7,7 +7,7 @@ import {
   Search, ShieldCheck, UploadCloud, FileText,
   Zap, BrainCircuit, CheckCircle2, Sparkles,
   BarChart3, AlertTriangle, User, Target, Mic2, Star, Clock, Network, ArrowRight, Play, Database,
-  Eye, Trash2
+  Eye, Trash2, Bell
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -16,7 +16,7 @@ const CandidateDashboard = () => {
   
   // --- UI & Navigation States ---
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState('match'); 
+  const [activeTab, setActiveTab] = useState('overview'); 
   
   // --- Data States ---
   const [user, setUser] = useState({ name: 'Candidate', skills: '', role: 'Candidate' });
@@ -24,7 +24,8 @@ const CandidateDashboard = () => {
   const [files, setFiles] = useState([]);
   const [uploadStatus, setUploadStatus] = useState('');
 
-  // --- New Resume Upload States ---
+  // --- Resume Upload & Display States ---
+  const [resumes, setResumes] = useState([]);
   const [resumeFile, setResumeFile] = useState(null);
   const [resumeUploadStatus, setResumeUploadStatus] = useState('');
   const [isUploadingResume, setIsUploadingResume] = useState(false);
@@ -37,8 +38,13 @@ const CandidateDashboard = () => {
   const [auditing, setAuditing] = useState(false);
   const [matchError, setMatchError] = useState("");
 
+  // --- NOTIFICATION STATES ---
+  const [notifications, setNotifications] = useState([]);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+
   const [ping, setPing] = useState(14);
 
+  // --- INITIALIZATION ---
   useEffect(() => {
     const storedName = localStorage.getItem("username") || "Verified Candidate";
     const storedSkills = localStorage.getItem("skills") || "";
@@ -47,15 +53,19 @@ const CandidateDashboard = () => {
     setUser({ name: storedName, skills: storedSkills, role: storedRole });
     if (storedSkills) setIsVerified(true);
 
-    const pingInterval = setInterval(() => {
-      setPing(Math.floor(Math.random() * (22 - 12 + 1) + 12));
-    }, 3000);
+    const pingInterval = setInterval(() => setPing(Math.floor(Math.random() * (22 - 12 + 1) + 12)), 3000);
     return () => clearInterval(pingInterval);
   }, []);
 
   useEffect(() => {
     if (user.name !== 'Candidate') {
       fetchUserFiles();
+      fetchUserResumes();
+      fetchNotifications();
+      
+      // Auto-poll notifications every 10 seconds
+      const notifInterval = setInterval(fetchNotifications, 10000);
+      return () => clearInterval(notifInterval);
     }
   }, [user.name]);
 
@@ -68,7 +78,44 @@ const CandidateDashboard = () => {
     navigate('/interview', { state: { target: expertName } });
   };
 
-  // --- NEW: RESUME UPLOAD LOGIC ---
+  // --- NOTIFICATION LOGIC ---
+  const fetchNotifications = async () => {
+    try {
+      // URL encoded to prevent errors with spaces in names (e.g. "Bhaskar Tiwari")
+      const res = await axios.get(`http://localhost:5000/api/notifications/${encodeURIComponent(user.name)}`);
+      setNotifications(res.data);
+    } catch (err) {
+      console.error("Failed to fetch notifications");
+    }
+  };
+
+  const markNotificationRead = async (id) => {
+    try {
+      await axios.put(`http://localhost:5000/api/notifications/read/${id}`);
+      fetchNotifications(); // Refresh list to remove the red dot
+    } catch (err) {
+      console.error("Failed to mark read");
+    }
+  };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  // --- SECURE RESUME VAULT LOGIC ---
+  const fetchUserResumes = async () => {
+    try {
+      const res = await axios.get(`http://localhost:5000/api/resumes/${user.name}`);
+      setResumes(res.data.map(r => ({
+        id: r.gridfs_id, 
+        name: r.filename || "Unknown Document",
+        size: r.size || "N/A",
+        date: r.upload_date ? new Date(r.upload_date).toLocaleDateString() : "Unknown Date",
+        isLegacy: r.gridfs_id === r._id 
+      })));
+    } catch (err) {
+      console.log("Resume fetch error or empty.");
+    }
+  };
+
   const handleResumeUpload = async (e) => {
     e.preventDefault();
     if (!resumeFile) return setResumeUploadStatus('Please select a file.');
@@ -87,6 +134,7 @@ const CandidateDashboard = () => {
       if (res.data.status === "Success") {
         setResumeUploadStatus('Resume successfully synced to Neural Core.');
         setResumeFile(null);
+        fetchUserResumes();
       }
     } catch (err) {
       setResumeUploadStatus('Upload failed. Check network link.');
@@ -96,20 +144,31 @@ const CandidateDashboard = () => {
     }
   };
 
-  // --- SECURE FILE VAULT LOGIC ---
+  const handleDeleteResume = async (fileId) => {
+    if (!window.confirm("Delete this resume permanently?")) return;
+    try {
+      await axios.delete(`http://localhost:5000/api/resumes/delete/${fileId}`);
+      fetchUserResumes();
+    } catch (err) {
+      console.error("Failed to delete resume", err);
+      alert("Error: Could not delete resume from database.");
+    }
+  };
+
+  // --- SECURE GENERAL VAULT LOGIC ---
   const fetchUserFiles = async () => {
     try {
       const res = await axios.get(`http://localhost:5000/api/vault/${user.name}`);
       setFiles(res.data.map(f => ({
         id: f.gridfs_id, 
         name: f.filename || "Unknown Document",
-        size: f.size || "N/A",
+        size: f.size || "N/A", 
         type: (f.filename || "FILE").split('.').pop().toUpperCase(),
         date: f.upload_date ? new Date(f.upload_date).toLocaleDateString() : "Unknown Date",
         isLegacy: f.gridfs_id === f._id 
       })));
     } catch (err) {
-      console.error("Vault connection error:", err);
+      console.log("Vault connection pending or empty...");
     }
   };
 
@@ -125,19 +184,19 @@ const CandidateDashboard = () => {
     setUploadStatus('Encrypting & Uploading...');
 
     try {
-      const res = await axios.post('http://localhost:5000/api/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      const res = await axios.post('http://localhost:5000/api/upload', formData, { 
+        headers: { 'Content-Type': 'multipart/form-data' } 
       });
       if (res.data.status === "Success") {
         setUploadStatus('Data securely logged in Vault.');
         setFile(null);
         fetchUserFiles();
       }
-    } catch (err) {
+    } catch (err) { 
       setUploadStatus('Upload failed. Check network link.');
-    } finally {
-      setIsProcessing(false);
-      setTimeout(() => setUploadStatus(''), 3000);
+    } finally { 
+      setIsProcessing(false); 
+      setTimeout(() => setUploadStatus(''), 3000); 
     }
   };
 
@@ -151,48 +210,46 @@ const CandidateDashboard = () => {
 
   const handleDeleteFile = async (fileId) => {
     if (!window.confirm("Are you sure you want to permanently delete this file from the Vault?")) return;
-    
     try {
       await axios.delete(`http://localhost:5000/api/vault/delete/${fileId}`);
       fetchUserFiles();
-    } catch (err) {
-      console.error("Failed to delete file", err);
-      alert("Error: Could not delete file from database.");
+    } catch (err) { 
+      alert("Error: Could not delete file from database."); 
     }
   };
 
   const auditProfile = async () => {
-    setAuditing(true);
+    setAuditing(true); 
     setAiFeedback("");
     try {
       const res = await axios.post('http://localhost:5000/api/audit', { 
-        skills: user.skills,
+        skills: user.skills, 
         username: user.name 
       });
       setAiFeedback(res.data.feedback);
-    } catch (err) {
+    } catch (err) { 
       console.error("Auditor sync failed");
-    } finally {
-      setAuditing(false);
+    } finally { 
+      setAuditing(false); 
     }
   };
 
   const runMatchEngine = async () => {
-    setIsProcessing(true);
-    setMatchError("");
+    setIsProcessing(true); 
+    setMatchError(""); 
     setMatches([]);
 
     try {
-      const res = await axios.post('http://localhost:5000/api/match', {
-        username: user.name,
-        skills: user.skills
+      const res = await axios.post('http://localhost:5000/api/match', { 
+        username: user.name, 
+        skills: user.skills 
       });
 
       if (res.data && res.data.length > 0) {
         const formattedMatches = res.data.slice(0, 3).map(match => ({
-           id: match.id || Math.random(),
+           id: match.id || Math.random(), 
            expert_name: match.expert_name || match.name || "Verified Expert",
-           domain: match.domain || "Specialist",
+           domain: match.domain || "Specialist", 
            score: typeof match.score === 'number' ? match.score.toFixed(1) : (match.match_score || 90.0)
         }));
         
@@ -200,11 +257,11 @@ const CandidateDashboard = () => {
       } else {
         setMatchError("No suitable experts found in the database. Please update your Vault skills.");
       }
-    } catch (err) {
+    } catch (err) { 
       console.error("Matching Error:", err);
       setMatchError("Failed to connect to the Neural Match Engine.");
-    } finally {
-      setIsProcessing(false);
+    } finally { 
+      setIsProcessing(false); 
     }
   };
 
@@ -255,7 +312,6 @@ const CandidateDashboard = () => {
           <span className="px-4 py-2 bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-full flex items-center gap-2 border border-emerald-500/20">
             <Sparkles size={12}/> Absolute Top Match
           </span>
-          {/* FIXED CSS CONFLICT HERE */}
           <span className="hidden md:flex items-center gap-1 text-[10px] text-emerald-500/70 font-black uppercase tracking-widest">
             <Network size={12}/> Neural Link Ready
           </span>
@@ -376,7 +432,8 @@ const CandidateDashboard = () => {
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
         
         {/* Topbar */}
-        <header className="h-24 px-6 md:px-10 flex items-center justify-between border-b border-white/5 bg-white/[0.02] backdrop-blur-md shrink-0">
+        {/* ADDED 'relative z-50' to header to fix Notification Dropdown clipping! */}
+        <header className="relative z-50 h-24 px-6 md:px-10 flex items-center justify-between border-b border-white/5 bg-white/[0.02] backdrop-blur-md shrink-0">
           <div>
             <h1 className="text-xl md:text-2xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 flex items-center gap-3">
               Identify: <span className="text-white">{user.name}</span>
@@ -386,8 +443,44 @@ const CandidateDashboard = () => {
             </p>
           </div>
           
-          {/* FIXED CSS CONFLICT HERE */}
           <div className="hidden md:flex items-center gap-4">
+            
+            {/* NOTIFICATION BELL WIDGET */}
+            <div className="relative">
+              <button onClick={() => setIsNotifOpen(!isNotifOpen)} className="relative p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all border border-white/10">
+                <Bell size={18} className="text-slate-300" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-[#020617] animate-pulse"></span>
+                )}
+              </button>
+
+              {/* Notification Dropdown */}
+              <AnimatePresence>
+                {isNotifOpen && (
+                  <motion.div initial={{opacity:0, y:10, scale:0.95}} animate={{opacity:1,y:0, scale:1}} exit={{opacity:0,y:10, scale:0.95}} className="absolute right-0 mt-4 w-80 bg-[#0B1021]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] z-50 overflow-hidden">
+                    <div className="p-4 border-b border-white/5 bg-white/5 flex justify-between items-center">
+                      <h3 className="text-xs font-black uppercase tracking-widest text-white">System Alerts</h3>
+                      <span className="text-[9px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded uppercase font-bold">{unreadCount} New</span>
+                    </div>
+                    <div className="max-h-80 overflow-y-auto custom-scrollbar p-2 space-y-1">
+                      {notifications.length === 0 ? (
+                        <div className="p-6 text-center text-slate-500 text-xs font-bold uppercase tracking-widest">No alerts detected.</div>
+                      ) : (
+                        notifications.map(n => (
+                          <div key={n._id} onClick={() => markNotificationRead(n._id)} className={`p-4 rounded-xl cursor-pointer transition-all ${n.read ? 'bg-transparent opacity-60 hover:bg-white/5' : 'bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20'}`}>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1 flex justify-between">
+                              {n.sender} <span className="text-slate-500">{new Date(n.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                            </p>
+                            <p className="text-sm font-medium text-slate-200 leading-snug">{n.message}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             <div className="flex items-center gap-4 bg-black/40 border border-white/10 rounded-full px-6 py-2">
               <div className="flex flex-col border-r border-white/10 pr-4">
                 <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Latency</span>
@@ -455,11 +548,55 @@ const CandidateDashboard = () => {
                       )}
                     </div>
 
-                    {/* Resume Upload Section */}
+                    {/* DYNAMIC RESUME DISPLAY & UPLOAD */}
                     <div className="mt-6 pt-6 border-t border-white/5">
                       <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2 mb-4">
                         <UploadCloud size={14} className="text-emerald-400" /> Primary Resume Sync
                       </h4>
+
+                      {/* Render Fetched Resumes */}
+                      {resumes.length > 0 && (
+                        <div className="mb-6 space-y-3">
+                          
+                          {/* 1. MOST RECENT RESUME (Highlighted) */}
+                          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 flex items-center justify-between shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+                            <div className="flex items-center gap-3 overflow-hidden pr-2">
+                              <div className="p-2 bg-emerald-500/20 rounded-lg shrink-0">
+                                <FileText className="text-emerald-400" size={20} />
+                              </div>
+                              <div className="truncate">
+                                <p className="text-sm font-bold text-emerald-400 truncate">{resumes[0].name}</p>
+                                <p className="text-[9px] text-emerald-500/70 font-black uppercase tracking-widest mt-0.5">Active Primary Node • {resumes[0].date}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button onClick={() => handleViewFile(resumes[0].id, resumes[0].isLegacy)} className="p-2 bg-emerald-500/20 hover:bg-emerald-500 hover:text-black text-emerald-400 rounded-lg transition-all" title="View Secure File"><Eye size={14} /></button>
+                              <button onClick={() => handleDeleteResume(resumes[0].id)} className="p-2 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 rounded-lg transition-all" title="Delete Resume"><Trash2 size={14} /></button>
+                            </div>
+                          </div>
+
+                          {/* 2. PREVIOUS RESUMES (List) */}
+                          {resumes.length > 1 && (
+                            <div className="pl-4 space-y-2 border-l-2 border-white/5 mt-4">
+                              <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-2">Archived Versions</p>
+                              {resumes.slice(1).map(r => (
+                                <div key={r.id} className="flex items-center justify-between bg-black/20 p-2.5 rounded-xl border border-white/5 group">
+                                  <div className="flex items-center gap-2 overflow-hidden pr-2">
+                                    <FileText size={12} className="text-slate-500 shrink-0"/>
+                                    <p className="text-xs text-slate-400 truncate">{r.name}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0 opacity-50 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => handleViewFile(r.id, r.isLegacy)} className="text-slate-500 hover:text-emerald-400 transition-colors"><Eye size={12} /></button>
+                                    <button onClick={() => handleDeleteResume(r.id)} className="text-slate-500 hover:text-red-400 transition-colors"><Trash2 size={12} /></button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Upload Input */}
                       <form onSubmit={handleResumeUpload} className="flex flex-col gap-3">
                         <div className="relative group cursor-pointer">
                           <div className="absolute inset-0 bg-emerald-500/10 blur-md rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -480,7 +617,7 @@ const CandidateDashboard = () => {
                           disabled={!resumeFile || isUploadingResume}
                           className="w-full py-3 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500 hover:text-black disabled:opacity-50 text-emerald-400 font-black text-[10px] tracking-[0.2em] uppercase rounded-xl flex items-center justify-center gap-2 transition-all"
                         >
-                          {isUploadingResume ? "SYNCING..." : "UPLOAD RESUME"}
+                          {isUploadingResume ? "SYNCING..." : "UPLOAD NEW RESUME"}
                         </button>
                         {resumeUploadStatus && (
                           <p className="text-[10px] font-bold tracking-widest text-emerald-400 uppercase text-center mt-2">
@@ -625,7 +762,7 @@ const CandidateDashboard = () => {
               <motion.div key="vault" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="max-w-4xl mx-auto">
                 <div className="mb-8 text-center">
                   <h2 className="text-2xl font-black uppercase tracking-widest text-blue-400">Secure Data Vault</h2>
-                  <p className="text-xs text-slate-400 font-medium mt-2">Upload your resumes and technical documents for AI parsing.</p>
+                  <p className="text-xs text-slate-400 font-medium mt-2">Upload your general technical documents for AI parsing.</p>
                 </div>
 
                 <div className="space-y-8">
