@@ -1,33 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  ArrowLeft, ShieldCheck, Activity, BrainCircuit, Terminal, MessageSquare, 
-  Send, Heart, ThumbsUp, Flame, Zap, Mic, MicOff, Video, VideoOff, 
-  MonitorUp, Focus, CircleDot, Users, Copy, Check, Hand, Maximize, Minimize 
-} from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Activity, BrainCircuit, Terminal, MessageSquare, Send, Heart, ThumbsUp, Flame, Zap, Mic, MicOff, Video, VideoOff, MonitorUp, Focus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Interview = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const jitsiContainerRef = useRef(null);
-  const videoWrapperRef = useRef(null); // Reference for fullscreen
   
   const [isLoading, setIsLoading] = useState(true);
-  const [sessionTime, setSessionTime] = useState(1800); 
+  const [sessionTime, setSessionTime] = useState(0);
   const [jitsiApi, setJitsiApi] = useState(null);
-
-  // --- NEW: Modern Meeting States ---
-  const [participantCount, setParticipantCount] = useState(1);
-  const [isCopied, setIsCopied] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isScreenSharing, setIsScreenSharing] = useState(false);
-  const [isHandRaised, setIsHandRaised] = useState(false);
 
   // Hardware States
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [isVideoMuted, setIsVideoMuted] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
 
   // Chat & Reaction States
   const [chatMessages, setChatMessages] = useState([]);
@@ -68,7 +55,7 @@ const Interview = () => {
     return `${m}:${s}`;
   };
 
-  // --- NATIVE JITSI INITIALIZATION (CONNECTION KEPT EXACTLY THE SAME) ---
+  // --- NATIVE JITSI INITIALIZATION ---
   useEffect(() => {
     let api = null;
 
@@ -119,21 +106,12 @@ const Interview = () => {
         addLog("P2P Video Bridge established successfully.");
       });
 
-      api.addListener('participantJoined', (p) => {
-        addLog(`Node connected: ${p.displayName}`);
-        setParticipantCount(prev => prev + 1);
-      });
-      
-      api.addListener('participantLeft', (p) => {
-        addLog(`Node disconnected: ${p.displayName}`);
-        setParticipantCount(prev => Math.max(1, prev - 1));
-      });
-
+      api.addListener('participantJoined', (p) => addLog(`Node connected: ${p.displayName}`));
+      api.addListener('participantLeft', (p) => addLog(`Node disconnected: ${p.displayName}`));
       api.addListener('videoConferenceLeft', handleDisconnect);
       
       api.addListener('audioMuteStatusChanged', ({ muted }) => setIsAudioMuted(muted));
       api.addListener('videoMuteStatusChanged', ({ muted }) => setIsVideoMuted(muted));
-      api.addListener('screenSharingStatusChanged', ({ on }) => setIsScreenSharing(on));
 
       api.addListener('incomingMessage', (event) => {
         const text = event.message;
@@ -155,32 +133,10 @@ const Interview = () => {
     return () => { if (api) api.dispose(); };
   }, [sanitizedRoomName, myName]);
 
-  // --- HARDWARE & MODERN CONTROLS ---
+  // --- HARDWARE CONTROLS ---
   const toggleMic = () => jitsiApi?.executeCommand('toggleAudio');
   const toggleCam = () => jitsiApi?.executeCommand('toggleVideo');
   const toggleShare = () => jitsiApi?.executeCommand('toggleShareScreen');
-  const toggleHand = () => {
-    setIsHandRaised(!isHandRaised);
-    jitsiApi?.executeCommand('toggleRaiseHand');
-    addLog(isHandRaised ? "You lowered your hand." : "You raised your hand.");
-  };
-
-  const copyRoomLink = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setIsCopied(true);
-    addLog("Secure room link copied to clipboard.");
-    setTimeout(() => setIsCopied(false), 2000);
-  };
-
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      videoWrapperRef.current?.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    }
-  };
 
   // --- CHAT & REACTION FUNCTIONS ---
   const sendChatMessage = (e) => {
@@ -239,35 +195,18 @@ const Interview = () => {
             <h1 className="text-lg font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400">
               Live Neural Sync
             </h1>
-            <div className="flex items-center gap-3 mt-0.5">
-              <p className="text-[9px] text-emerald-400 font-black uppercase tracking-[0.3em] flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> P2P Encrypted • {formatTime(sessionTime)}
-              </p>
-              {/* NEW: Participant Counter */}
-              <div className="hidden md:flex items-center gap-1.5 bg-white/10 px-2 py-0.5 rounded text-[9px] font-bold tracking-widest text-slate-300">
-                <Users size={10} className="text-cyan-400" /> {participantCount} Nodes
-              </div>
-            </div>
+            <p className="text-[9px] text-emerald-400 font-black uppercase tracking-[0.3em] flex items-center gap-2 mt-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> P2P Encrypted • {formatTime(sessionTime)}
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* NEW: Copy Link Button */}
-          <button 
-            onClick={copyRoomLink}
-            className="hidden md:flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-cyan-400 font-black text-[10px] uppercase tracking-[0.2em] rounded-xl transition-all active:scale-95"
-          >
-            {isCopied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-            {isCopied ? "Copied" : "Invite"}
-          </button>
-
-          <button 
-            onClick={handleDisconnect}
-            className="flex items-center gap-2 px-6 py-2.5 bg-red-500/10 hover:bg-red-500 hover:text-black border border-red-500/30 text-red-400 font-black text-[10px] uppercase tracking-[0.2em] rounded-xl transition-all shadow-[0_0_15px_rgba(239,68,68,0.2)] active:scale-95"
-          >
-            <ArrowLeft size={14} /> Terminate
-          </button>
-        </div>
+        <button 
+          onClick={handleDisconnect}
+          className="flex items-center gap-2 px-6 py-2.5 bg-red-500/10 hover:bg-red-500 hover:text-black border border-red-500/30 text-red-400 font-black text-[10px] uppercase tracking-[0.2em] rounded-xl transition-all shadow-[0_0_15px_rgba(239,68,68,0.2)] active:scale-95"
+        >
+          <ArrowLeft size={14} /> Terminate
+        </button>
       </header>
 
       {/* --- MAIN GRID LAYOUT (Ultra Strict Bounds) --- */}
@@ -300,7 +239,7 @@ const Interview = () => {
           </div>
 
           {/* Video Container (Strictly restricted to remaining height) */}
-          <div ref={videoWrapperRef} className="flex-1 w-full relative rounded-[2.5rem] overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(6,182,212,0.1)] bg-black min-h-0 group">
+          <div className="flex-1 w-full relative rounded-[2.5rem] overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(6,182,212,0.1)] bg-black min-h-0">
             
             <AnimatePresence>
               {isLoading && (
@@ -315,6 +254,15 @@ const Interview = () => {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* Instruction Overlay */}
+            {!isLoading && (
+              <div className="absolute top-4 right-4 z-10 pointer-events-none opacity-0 hover:opacity-100 transition-opacity duration-500">
+                <p className="bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border border-white/10 text-slate-300">
+                  You can drag your video thumbnail
+                </p>
+              </div>
+            )}
 
             {/* Floating Emojis Layer */}
             <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden">
@@ -352,16 +300,6 @@ const Interview = () => {
               )}
             </AnimatePresence>
 
-            {/* NEW: Fullscreen Toggle Overlay */}
-            <div className="absolute top-4 left-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-              <button 
-                onClick={toggleFullscreen}
-                className="bg-black/60 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-500/50 backdrop-blur-md p-2.5 rounded-xl text-slate-300 hover:text-cyan-400 transition-all"
-              >
-                {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
-              </button>
-            </div>
-
             {/* Jitsi Iframe Injects Here */}
             <div ref={jitsiContainerRef} className="w-full h-full absolute inset-0" />
           </div>
@@ -377,16 +315,9 @@ const Interview = () => {
               <button onClick={toggleCam} className={`w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center transition-all ${isVideoMuted ? 'bg-red-500/20 text-red-500 border border-red-500/30' : 'bg-white/10 hover:bg-white/20 text-white border border-transparent'}`}>
                 {isVideoMuted ? <VideoOff size={18} /> : <Video size={18} />}
               </button>
-              
               <div className="w-px h-6 bg-white/10 mx-1 md:mx-2 hidden md:block" />
-              
-              <button onClick={toggleShare} className={`w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center transition-all ${isScreenSharing ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50 animate-pulse' : 'bg-white/10 hover:bg-white/20 text-white border border-transparent'}`}>
+              <button onClick={toggleShare} className="w-10 h-10 md:w-12 md:h-12 bg-white/10 hover:bg-cyan-500/20 hover:text-cyan-400 text-white border border-transparent hover:border-cyan-500/30 rounded-xl md:rounded-2xl flex items-center justify-center transition-all">
                 <MonitorUp size={18} />
-              </button>
-              
-              {/* NEW: Raise Hand Button */}
-              <button onClick={toggleHand} className={`w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center transition-all ${isHandRaised ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50' : 'bg-white/10 hover:bg-white/20 text-white border border-transparent'}`}>
-                <Hand size={18} />
               </button>
             </div>
 
@@ -414,24 +345,22 @@ const Interview = () => {
         </div>
 
         {/* === RIGHT COLUMN (Chat & Logs) === */}
-        <div className="hidden lg:flex flex-[1] flex-col gap-4 relative min-w-0 h-full">
+        <div className="flex-[1] flex flex-col gap-4 min-h-0 min-w-0 h-full">
           
-          <div className="flex-[2] bg-white/5 border border-white/10 rounded-xl md:rounded-[2.5rem] p-4 md:p-6 backdrop-blur-md flex flex-col shadow-xl min-h-0">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-3 shrink-0">
+          {/* Team Comms (Live Chat) */}
+          <div className="flex-[2] bg-white/5 border border-white/10 rounded-[2.5rem] p-5 md:p-6 backdrop-blur-md flex flex-col shadow-xl min-h-0">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4 shrink-0">
               <h3 className="text-[10px] font-black text-cyan-400 uppercase tracking-[0.3em] flex items-center gap-2">
                 <MessageSquare size={14} /> Team Comms
               </h3>
-              {myRole === 'Expert' ? (
-                <span className="text-[7px] bg-cyan-500/10 text-cyan-400 px-2 py-1 rounded uppercase tracking-widest border border-cyan-500/20">
-                  /prompt | /clear
-                </span>
-              ) : (
-                <span className="text-[7px] bg-slate-500/10 text-slate-400 px-2 py-1 rounded uppercase tracking-widest border border-slate-500/20">
-                  /clear to wipe local
+              {myRole === 'Expert' && (
+                <span className="text-[8px] bg-cyan-500/10 text-cyan-400 px-2 py-1 rounded uppercase tracking-widest border border-cyan-500/20">
+                  Tip: Type /prompt
                 </span>
               )}
             </div>
             
+            {/* Messages Area */}
             <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2 custom-scrollbar min-h-0">
               {chatMessages.length === 0 ? (
                 <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold text-center mt-10">No messages routed yet.</p>
@@ -439,7 +368,7 @@ const Interview = () => {
                 chatMessages.map((msg, i) => (
                   <div key={i} className={`flex flex-col ${msg.sender === myName ? 'items-end' : 'items-start'}`}>
                     <p className="text-[8px] font-black text-slate-500 uppercase mb-1 px-1 tracking-widest">{msg.sender}</p>
-                    <div className={`p-2.5 md:p-3 rounded-2xl text-xs max-w-[90%] font-medium shadow-md ${
+                    <div className={`p-3 rounded-2xl text-xs max-w-[90%] font-medium shadow-md ${
                       msg.sender === myName 
                         ? 'bg-cyan-600/20 text-cyan-100 border border-cyan-500/30 rounded-tr-sm' 
                         : 'bg-white/10 text-white border border-white/5 rounded-tl-sm'
@@ -451,29 +380,32 @@ const Interview = () => {
               )}
             </div>
 
+            {/* Chat Input */}
             <form onSubmit={sendChatMessage} className="relative shrink-0">
               <input 
                 type="text" 
                 value={currentMessage}
                 onChange={(e) => setCurrentMessage(e.target.value)}
-                placeholder="Transmit message..."
-                className="w-full bg-black/40 border border-white/10 rounded-xl md:rounded-2xl py-3 pl-4 pr-12 text-xs outline-none focus:border-cyan-500/50 transition-all font-medium text-white shadow-inner"
+                placeholder={myRole === 'Expert' ? "Chat, or type /prompt..." : "Transmit message..."}
+                className="w-full bg-black/40 border border-white/10 rounded-2xl py-3.5 pl-5 pr-12 text-xs outline-none focus:border-cyan-500/50 transition-all font-medium text-white shadow-inner"
               />
               <button 
                 type="submit" 
                 disabled={!currentMessage.trim()}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-cyan-500/20 text-cyan-400 rounded-lg md:rounded-xl flex items-center justify-center hover:bg-cyan-500 hover:text-black transition-all disabled:opacity-50"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-cyan-500/20 text-cyan-400 rounded-xl flex items-center justify-center hover:bg-cyan-500 hover:text-black transition-all disabled:opacity-50"
               >
                 <Send size={14} />
               </button>
             </form>
           </div>
 
-          <div className="flex-[1] bg-black/40 border border-white/10 rounded-xl md:rounded-[2.5rem] p-4 md:p-6 backdrop-blur-md flex flex-col shadow-inner min-h-0 shrink-0">
+          {/* Neural Terminal (System Logs) */}
+          <div className="flex-[1] bg-black/40 border border-white/10 rounded-[2.5rem] p-5 md:p-6 backdrop-blur-md flex flex-col shadow-inner min-h-0 shrink-0">
             <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-3 flex items-center gap-2 shrink-0">
               <Terminal size={14} className="text-emerald-400" /> Neural Terminal
             </h3>
-            <div className="flex-1 overflow-y-auto font-mono text-[9px] md:text-[10px] space-y-2 custom-scrollbar flex flex-col-reverse pr-2 min-h-0">
+            {/* Logs Area */}
+            <div className="flex-1 overflow-y-auto font-mono text-[10px] space-y-2 custom-scrollbar flex flex-col-reverse pr-2 min-h-0">
               {[...systemLogs].reverse().map((log, i) => (
                 <div key={i} className={`${i === 0 ? 'text-emerald-400 font-bold' : 'text-slate-500'}`}>
                   {log}
