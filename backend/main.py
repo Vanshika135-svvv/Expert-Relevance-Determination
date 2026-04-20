@@ -52,7 +52,7 @@ experts_col = db['experts']
 users_col = db['users']
 interviews_col = db['interviews']
 vault_col = db['vault'] # Metadata for uploaded files
-assessments_col = db['assessments'] # NEW: Collection for storing Expert Evaluations
+assessments_col = db['assessments'] # Collection for storing Expert Evaluations
 
 # ==========================================
 # 3. BACKEND API ROUTES
@@ -278,7 +278,7 @@ def match_expert():
         return jsonify({"error": str(e)}), 500
 
 
-# --- NEW: EXPERT ASSESSMENT LOGGING ROUTE ---
+# --- EXPERT ASSESSMENT LOGGING ROUTE ---
 @app.route('/api/assessments', methods=['POST'])
 def save_assessment():
     try:
@@ -301,6 +301,28 @@ def save_assessment():
     except Exception as e:
         print(f"Database Error: {e}")
         return jsonify({"status": "Error", "message": "Failed to record assessment."}), 500
+
+
+# --- NEW: RETRIEVE EXPERT ASSESSMENT ROUTE ---
+@app.route('/api/assessments/<candidate_name>', methods=['GET'])
+def get_candidate_assessment(candidate_name):
+    try:
+        # Fetch the most recent assessment for this specific candidate
+        assessment = assessments_col.find_one(
+            {"candidate_name": candidate_name},
+            sort=[("timestamp", -1)], # Retrieves the newest evaluation
+            projection={"_id": 0} # Hides the MongoDB ObjectID from the frontend
+        )
+        
+        if assessment:
+            return jsonify({"status": "Success", "data": assessment})
+        else:
+            # If the expert hasn't submitted yet, return a 404 Pending status
+            return jsonify({"status": "Pending", "message": "No assessment found yet."}), 404
+            
+    except Exception as e:
+        print(f"Database Error: {e}")
+        return jsonify({"status": "Error", "message": "Failed to fetch assessment."}), 500
 
 
 # ==========================================
