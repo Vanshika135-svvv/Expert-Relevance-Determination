@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Users, Activity, Calendar, Settings, 
@@ -11,6 +11,7 @@ import axios from 'axios';
 
 const ExpertDashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation(); // Used to catch routing state from the Interview page
   
   // --- UI & Navigation States ---
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -21,11 +22,26 @@ const ExpertDashboard = () => {
   const [loadingQueue, setLoadingQueue] = useState(true);
   
   // --- Evaluation Form States ---
-  const [evaluation, setEvaluation] = useState({ candidateName: '', score: 5 });
+  const [evaluation, setEvaluation] = useState({ candidateName: '', score: 5, remarks: '' });
   const [submitStatus, setSubmitStatus] = useState({ message: '', type: '' });
   const [evalLoading, setEvalLoading] = useState(false);
 
   const expertName = localStorage.getItem('username') || 'Verified Expert';
+
+  // --- Auto-Open Assessment Tab Logic ---
+  useEffect(() => {
+    // If we just navigated back from the Interview page...
+    if (location.state && location.state.autoOpenAssessment) {
+      setActiveTab('assessments'); // Switch to the form
+      setEvaluation(prev => ({ 
+        ...prev, 
+        candidateName: location.state.evaluatedCandidate || "" 
+      }));
+      
+      // Clean up the history state so it doesn't trigger again on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
 
   // Fetch Live Queue Data
   useEffect(() => {
@@ -49,8 +65,10 @@ const ExpertDashboard = () => {
     navigate('/interview', { state: { target: candidateName } });
   };
 
-  // --- Evaluation Submission Logic ---
-  const submitScore = async () => {
+  // --- Live Backend Evaluation Submission Logic ---
+  const submitScore = async (e) => {
+    if (e) e.preventDefault();
+
     if (!evaluation.candidateName) {
       setSubmitStatus({ message: 'Candidate name is required.', type: 'error' });
       return;
@@ -60,16 +78,24 @@ const ExpertDashboard = () => {
     setSubmitStatus({ message: '', type: '' });
 
     try {
-      // Future API Call: await axios.post('https://expert-relevance-determination.onrender.com/api/evaluate', evaluation);
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network delay
-      
-      setSubmitStatus({ message: 'Evaluation Encrypted & Submitted Successfully!', type: 'success' });
-      setEvaluation({ candidateName: '', score: 5 }); // Reset form
-      
-      // Clear success message after 3 seconds
-      setTimeout(() => setSubmitStatus({ message: '', type: '' }), 3000);
+      // FIX: Changed to localhost:5000 so it hits your local Python Flask server!
+      const res = await axios.post('http://localhost:5000/api/assessments', {
+        expert_name: expertName,
+        candidate_name: evaluation.candidateName,
+        score: evaluation.score,
+        remarks: evaluation.remarks
+      });
+
+      if (res.data.status === "Success" || res.status === 200) {
+        setSubmitStatus({ message: 'Evaluation Encrypted & Saved to Database!', type: 'success' });
+        setEvaluation({ candidateName: '', score: 5, remarks: '' }); // Reset form
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => setSubmitStatus({ message: '', type: '' }), 3000);
+      }
     } catch (err) {
-      setSubmitStatus({ message: 'Sync Failed: Could not submit evaluation.', type: 'error' });
+      console.error("Failed to log assessment:", err);
+      setSubmitStatus({ message: 'Sync Failed: Could not connect to MongoDB.', type: 'error' });
     } finally {
       setEvalLoading(false);
     }
@@ -290,7 +316,7 @@ const ExpertDashboard = () => {
               </motion.div>
             )}
 
-            {/* ASSESSMENTS TAB (Merged from old Evaluation Form) */}
+            {/* ASSESSMENTS TAB */}
             {activeTab === 'assessments' && (
               <motion.div key="assessments" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="max-w-6xl mx-auto">
                 <div className="mb-8">
@@ -304,7 +330,7 @@ const ExpertDashboard = () => {
                     <ClipboardCheck className="text-cyan-400 mb-6" size={32} />
                     <h3 className="text-lg font-black uppercase tracking-widest mb-6">Log Assessment</h3>
                     
-                    <div className="space-y-6">
+                    <form className="space-y-6" onSubmit={submitScore}>
                       <div>
                         <label className="block text-slate-500 text-[10px] font-black mb-2 uppercase tracking-widest ml-1">Candidate Identity</label>
                         <input 
@@ -333,8 +359,18 @@ const ExpertDashboard = () => {
                         </div>
                       </div>
 
+                      <div>
+                        <label className="block text-slate-500 text-[10px] font-black mb-2 uppercase tracking-widest ml-1">Detailed Remarks</label>
+                        <textarea 
+                          placeholder="Enter technical feedback or observations..."
+                          value={evaluation.remarks}
+                          onChange={(e) => setEvaluation({...evaluation, remarks: e.target.value})}
+                          className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-sm font-medium outline-none focus:border-cyan-500/50 transition-all min-h-[100px] resize-y custom-scrollbar"
+                        />
+                      </div>
+
                       <button 
-                        onClick={submitScore} 
+                        type="submit" 
                         disabled={evalLoading}
                         className="w-full py-4 mt-6 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 text-white font-black text-xs tracking-[0.2em] uppercase rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-cyan-900/20 transition-all active:scale-[0.98]"
                       >
@@ -350,7 +386,7 @@ const ExpertDashboard = () => {
                           {submitStatus.message}
                         </motion.p>
                       )}
-                    </div>
+                    </form>
                   </div>
 
                   {/* Guidelines Panel */}

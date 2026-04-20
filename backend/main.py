@@ -52,6 +52,7 @@ experts_col = db['experts']
 users_col = db['users']
 interviews_col = db['interviews']
 vault_col = db['vault'] # Metadata for uploaded files
+assessments_col = db['assessments'] # NEW: Collection for storing Expert Evaluations
 
 # ==========================================
 # 3. BACKEND API ROUTES
@@ -275,6 +276,32 @@ def match_expert():
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# --- NEW: EXPERT ASSESSMENT LOGGING ROUTE ---
+@app.route('/api/assessments', methods=['POST'])
+def save_assessment():
+    try:
+        data = request.get_json()
+        
+        # Create the document structure
+        assessment_doc = {
+            "expert_name": data.get('expert_name'),
+            "candidate_name": data.get('candidate_name'),
+            "score": data.get('score'),
+            "remarks": data.get('remarks', ''),
+            "timestamp": datetime.utcnow()
+        }
+        
+        # Insert into MongoDB
+        assessments_col.insert_one(assessment_doc)
+        
+        return jsonify({"status": "Success", "message": "Assessment recorded securely."})
+        
+    except Exception as e:
+        print(f"Database Error: {e}")
+        return jsonify({"status": "Error", "message": "Failed to record assessment."}), 500
+
 
 # ==========================================
 # 4. RUN THE SERVER

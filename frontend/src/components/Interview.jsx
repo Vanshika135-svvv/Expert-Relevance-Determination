@@ -58,10 +58,21 @@ const Interview = () => {
   const encodedRoomName = btoa(normalizedRoomName).replace(/=/g, '');
   const sanitizedRoomName = `NexusSync-${encodedRoomName}`;
 
+  // --- NEW DISCONNECT LOGIC (Routes to Assessment) ---
   const handleDisconnect = () => {
     if (jitsiApi) jitsiApi.dispose();
-    if (myRole === 'Expert') navigate('/expert-dashboard');
-    else navigate('/result');
+    
+    if (myRole === 'Expert') {
+      // FIX: Changed from '/expert-dashboard' to '/expert' to match your URL!
+      navigate('/expert', { 
+        state: { 
+          autoOpenAssessment: true, 
+          evaluatedCandidate: targetCandidate 
+        } 
+      });
+    } else {
+      navigate('/result');
+    }
   };
 
   const addLog = (msg) => {
@@ -345,7 +356,7 @@ const Interview = () => {
       </header>
 
       {/* --- MAIN GRID LAYOUT --- */}
-      <main className="flex-1 flex flex-col lg:flex-row gap-6 p-4 md:p-6 relative z-10 max-w-[1800px] mx-auto w-full min-h-0 overflow-hidden">
+      <main className="flex-1 flex flex-col lg:flex-row gap-6 p-4 md:p-6 relative z-10 max-w-[1800px] mx-auto w-full md:min-h-0 overflow-hidden">
         
         {/* === LEFT COLUMN === */}
         <div className="flex-[2] lg:flex-[2.5] flex flex-col gap-4 relative min-h-0 w-full h-full">
@@ -359,7 +370,7 @@ const Interview = () => {
           </div>
 
           {/* Video Container */}
-          <div ref={videoWrapperRef} className="flex-1 w-full relative rounded-xl md:rounded-[2.5rem] overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(6,182,212,0.1)] bg-black min-h-0 group">
+          <div ref={videoWrapperRef} className="flex-1 w-full relative rounded-xl md:rounded-[2.5rem] overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(6,182,212,0.1)] bg-black min-h-[450px] lg:min-h-0 group">
             
             <AnimatePresence>
               {isLoading && (
