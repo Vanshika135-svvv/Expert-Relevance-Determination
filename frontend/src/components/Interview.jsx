@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, ShieldCheck, Terminal, MessageSquare, Send, Heart, ThumbsUp, Flame, Zap, Mic, MicOff, Video, VideoOff, MonitorUp, Focus, CircleDot, Users, Copy, Check, Hand, Maximize, Minimize, Link } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, BrainCircuit, Terminal, MessageSquare, Send, Heart, ThumbsUp, Flame, Zap, Mic, MicOff, Video, VideoOff, MonitorUp, Focus, CircleDot, Users, Copy, Check, Hand, Maximize, Minimize, Link } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Interview = () => {
@@ -13,7 +13,8 @@ const Interview = () => {
   const jitsiInitRef = useRef(false); 
   const isMounted = useRef(true);
   
-  const [sessionTime, setSessionTime] = useState(1800); // 30 Min limit
+  const [isLoading, setIsLoading] = useState(true);
+  const [sessionTime, setSessionTime] = useState(300); // 5 Min limit (300 seconds)
   const [jitsiApi, setJitsiApi] = useState(null);
 
   // Modern Meeting States
@@ -34,7 +35,7 @@ const Interview = () => {
   const [activePrompt, setActivePrompt] = useState("");
   const [systemLogs, setSystemLogs] = useState([
     "Initializing secure Aegis V2 protocol...",
-    "Allocating 30-minute secure node...",
+    "Allocating 5-minute secure node...",
     "Connecting to remote routing paths...",
   ]);
 
@@ -42,15 +43,15 @@ const Interview = () => {
   const myName = localStorage.getItem('username') || 'Unknown Node';
   const myRole = localStorage.getItem('role') || 'Candidate';
   
-  // FIX: Permanently save the target into localStorage so refreshes don't break the connection
+  // Safely get target. If page reloads, grab from session storage to prevent connection loss.
   const passedTarget = location.state?.target;
   if (passedTarget) {
-    localStorage.setItem('nexusTarget', passedTarget);
+    sessionStorage.setItem('nexusTarget', passedTarget);
   }
-  const targetCandidate = passedTarget || localStorage.getItem('nexusTarget');
+  const targetCandidate = passedTarget || sessionStorage.getItem('nexusTarget') || "UnknownTarget";
 
   // STRICT ROOM RULE: The room is ALWAYS the Candidate's name.
-  const rawRoomName = myRole === 'Expert' && targetCandidate ? targetCandidate : myName;
+  const rawRoomName = myRole === 'Expert' ? targetCandidate : myName;
   
   // Normalize string to guarantee matching room hashes
   const normalizedRoomName = rawRoomName.trim().toLowerCase().replace(/\s+/g, '');
@@ -65,6 +66,11 @@ const Interview = () => {
 
   const addLog = (msg) => {
     setSystemLogs(prev => [...prev, `[${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})}] ${msg}`]);
+  };
+
+  const triggerOverlay = (type, text) => {
+    setActiveOverlay({ type, text });
+    setTimeout(() => { if (isMounted.current) setActiveOverlay({ type: null, text: "" }) }, 10000); 
   };
 
   // --- COUNTDOWN TIMER ---
@@ -130,9 +136,9 @@ const Interview = () => {
         configOverwrite: {
           startWithAudioMuted: false,
           startWithVideoMuted: false,
-          prejoinPageEnabled: true, // Must be TRUE so you can click "I am the host"
+          prejoinPageEnabled: true, // Must be true for host to unlock room
           disableModeratorIndicator: false, 
-          subject: ' ', // Hides confusing Jitsi text
+          subject: ' ', // Hide room name
         },
         interfaceConfigOverwrite: {
           DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
@@ -146,8 +152,14 @@ const Interview = () => {
       api = new window.JitsiMeetExternalAPI(domain, options);
       setJitsiApi(api);
 
+      // Failsafe: Remove loading screen after 4 seconds regardless of connection status
+      setTimeout(() => {
+        if (isMounted.current) setIsLoading(false);
+      }, 4000);
+
       api.addListener('videoConferenceJoined', () => {
         if (isMounted.current) {
+          setIsLoading(false);
           addLog("P2P Video Bridge established successfully.");
         }
       });
@@ -156,10 +168,12 @@ const Interview = () => {
         addLog(`Node connected: ${p.displayName}`);
         setParticipantCount(prev => prev + 1);
       });
+      
       api.addListener('participantLeft', (p) => {
         addLog(`Node disconnected: ${p.displayName}`);
         setParticipantCount(prev => Math.max(1, prev - 1));
       });
+      
       api.addListener('videoConferenceLeft', handleDisconnect);
       
       api.addListener('audioMuteStatusChanged', ({ muted }) => setIsAudioMuted(muted));
@@ -263,7 +277,7 @@ const Interview = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#020617] text-white flex flex-col font-sans selection:bg-cyan-500 relative md:h-screen md:overflow-hidden overflow-y-auto">
+    <div className="h-screen max-h-screen w-full bg-[#020617] text-white flex flex-col font-sans overflow-hidden selection:bg-cyan-500 relative">
       
       {/* Background Glows */}
       <div className="absolute inset-0 -z-10 pointer-events-none">
@@ -289,9 +303,9 @@ const Interview = () => {
               )}
             </h1>
             <div className="flex items-center gap-3 mt-0.5">
-              <p className={`text-[8px] md:text-[9px] font-black uppercase tracking-[0.3em] flex items-center gap-2 ${sessionTime < 300 ? 'text-red-400 animate-pulse' : 'text-emerald-400'}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${sessionTime < 300 ? 'bg-red-400' : 'bg-emerald-400'} animate-pulse`} /> 
-                {formatTime(sessionTime)} REMAINING
+              <p className={`text-[8px] md:text-[9px] font-black uppercase tracking-[0.3em] flex items-center gap-2 ${sessionTime < 60 ? 'text-red-400 animate-pulse' : 'text-emerald-400'}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${sessionTime < 60 ? 'bg-red-400' : 'bg-emerald-400'} animate-pulse`} /> 
+                {formatTime(sessionTime)} ACTIVE
               </p>
               <div className="hidden md:flex items-center gap-1.5 bg-white/10 px-2 py-0.5 rounded text-[9px] font-bold tracking-widest text-slate-300">
                 <Users size={10} className="text-cyan-400" /> {participantCount} Nodes
@@ -300,7 +314,6 @@ const Interview = () => {
           </div>
         </div>
 
-        {/* IDENTITY VERIFICATION BADGES */}
         <div className="hidden lg:flex items-center gap-6">
           <div className="flex flex-col items-end border-r border-white/10 pr-6">
             <span className="text-[8px] text-slate-500 uppercase tracking-widest font-bold">Sync Node (Room)</span>
@@ -332,10 +345,10 @@ const Interview = () => {
       </header>
 
       {/* --- MAIN GRID LAYOUT --- */}
-      <main className="flex-1 flex flex-col lg:flex-row gap-6 p-4 md:p-6 relative z-10 max-w-[1800px] mx-auto w-full md:min-h-0 overflow-hidden">
+      <main className="flex-1 flex flex-col lg:flex-row gap-6 p-4 md:p-6 relative z-10 max-w-[1800px] mx-auto w-full min-h-0 overflow-hidden">
         
         {/* === LEFT COLUMN === */}
-        <div className="flex-[2] lg:flex-[2.5] flex flex-col gap-4 relative md:min-h-0 w-full h-auto md:h-full">
+        <div className="flex-[2] lg:flex-[2.5] flex flex-col gap-4 relative min-h-0 w-full h-full">
           
           <div className="bg-blue-500/10 border border-blue-500/30 p-3 md:p-4 rounded-xl md:rounded-2xl flex items-start md:items-center gap-3 shrink-0 shadow-inner">
             <ShieldCheck className="text-blue-400 shrink-0 mt-1 md:mt-0" />
@@ -345,8 +358,22 @@ const Interview = () => {
             </p>
           </div>
 
-          {/* Video Container - Notice NO Loading Overlay blocks this anymore! */}
-          <div ref={videoWrapperRef} className="w-full relative rounded-xl md:rounded-[2.5rem] overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(6,182,212,0.1)] bg-black min-h-[450px] lg:flex-1 lg:min-h-0 group custom-scrollbar">
+          {/* Video Container */}
+          <div ref={videoWrapperRef} className="flex-1 w-full relative rounded-xl md:rounded-[2.5rem] overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(6,182,212,0.1)] bg-black min-h-0 group">
+            
+            <AnimatePresence>
+              {isLoading && (
+                <motion.div 
+                  initial={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#020617] backdrop-blur-md"
+                >
+                  <div className="w-20 h-20 bg-cyan-500/10 rounded-full flex items-center justify-center mb-6 animate-pulse border border-cyan-500/30 shadow-[0_0_40px_rgba(6,182,212,0.3)]">
+                    <BrainCircuit size={40} className="text-cyan-400" />
+                  </div>
+                  <h2 className="text-xl font-black uppercase tracking-widest text-cyan-400 mb-2">Establishing Link...</h2>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <div className="absolute top-4 right-14 z-10 pointer-events-none opacity-0 hover:opacity-100 transition-opacity duration-500">
               <p className="bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border border-white/10 text-slate-300">
@@ -414,7 +441,7 @@ const Interview = () => {
                 {isVideoMuted ? <VideoOff size={18} /> : <Video size={18} />}
               </button>
               <div className="w-px h-6 bg-white/10 mx-1 md:mx-2 hidden md:block" />
-              <button onClick={toggleShare} className="w-10 h-10 md:w-12 md:h-12 bg-white/10 hover:bg-cyan-500/20 hover:text-cyan-400 text-white border border-transparent hover:border-cyan-500/30 rounded-xl md:rounded-2xl flex items-center justify-center transition-all">
+              <button onClick={toggleShare} className="w-10 h-10 md:w-12 md:h-12 bg-white/10 hover:bg-cyan-500/20 hover:text-cyan-400 text-white rounded-xl md:rounded-2xl flex items-center justify-center transition-all">
                 <MonitorUp size={18} />
               </button>
               <button onClick={toggleHand} className={`w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center transition-all ${isHandRaised ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50' : 'bg-white/10 hover:bg-white/20 text-white'}`}>
@@ -437,7 +464,7 @@ const Interview = () => {
                   <button 
                     key={i}
                     onClick={() => sendReaction(reaction.label)}
-                    className={`w-10 h-10 md:w-12 md:h-12 bg-white/5 hover:bg-white/10 text-slate-300 border border-transparent hover:border ${reaction.color} rounded-xl md:rounded-2xl flex items-center justify-center transition-all hover:-translate-y-1 active:scale-90 shadow-lg`}
+                    className={`w-10 h-10 md:w-12 md:h-12 bg-white/5 hover:bg-white/10 text-slate-300 border border-transparent hover:border ${reaction.color} rounded-xl md:rounded-2xl flex items-center justify-center transition-all hover:-translate-y-1 active:scale-90`}
                   >
                     {reaction.icon}
                   </button>
