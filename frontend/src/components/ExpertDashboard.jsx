@@ -11,7 +11,7 @@ import axios from 'axios';
 
 const ExpertDashboard = () => {
   const navigate = useNavigate();
-  const location = useLocation(); // Used to catch routing state from the Interview page
+  const location = useLocation(); 
   
   // --- UI & Navigation States ---
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -28,20 +28,21 @@ const ExpertDashboard = () => {
 
   const expertName = localStorage.getItem('username') || 'Verified Expert';
 
-  // --- Auto-Open Assessment Tab Logic ---
+  // --- AUTOMATED ASSESSMENT PRE-FILL LOGIC ---
   useEffect(() => {
-    // If we just navigated back from the Interview page...
-    if (location.state && location.state.autoOpenAssessment) {
-      setActiveTab('assessments'); // Switch to the form
+    // If the router state contains 'autoOpenAssessment', it means we just left a meeting!
+    if (location.state?.autoOpenAssessment) {
+      setActiveTab('assessments'); // Auto-switch to the form tab
+      
       setEvaluation(prev => ({ 
         ...prev, 
         candidateName: location.state.evaluatedCandidate || "" 
       }));
       
-      // Clean up the history state so it doesn't trigger again on refresh
-      window.history.replaceState({}, document.title);
+      // CRITICAL: Safely clear the location state so it doesn't get stuck on page refresh
+      navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location]);
+  }, [location.state, navigate, location.pathname]);
 
   // Fetch Live Queue Data
   useEffect(() => {
@@ -61,11 +62,10 @@ const ExpertDashboard = () => {
   };
 
   const handleJoinSync = (candidateName) => {
-    // Navigates to the live video sync room
     navigate('/interview', { state: { target: candidateName } });
   };
 
-  // --- Live Backend Evaluation Submission Logic ---
+  // --- LIVE BACKEND EVALUATION SUBMISSION ---
   const submitScore = async (e) => {
     if (e) e.preventDefault();
 
@@ -78,7 +78,6 @@ const ExpertDashboard = () => {
     setSubmitStatus({ message: '', type: '' });
 
     try {
-      // FIX: Changed to localhost:5000 so it hits your local Python Flask server!
       const res = await axios.post('http://localhost:5000/api/assessments', {
         expert_name: expertName,
         candidate_name: evaluation.candidateName,
@@ -88,9 +87,8 @@ const ExpertDashboard = () => {
 
       if (res.data.status === "Success" || res.status === 200) {
         setSubmitStatus({ message: 'Evaluation Encrypted & Saved to Database!', type: 'success' });
-        setEvaluation({ candidateName: '', score: 5, remarks: '' }); // Reset form
+        setEvaluation({ candidateName: '', score: 5, remarks: '' }); 
         
-        // Clear success message after 3 seconds
         setTimeout(() => setSubmitStatus({ message: '', type: '' }), 3000);
       }
     } catch (err) {

@@ -9,26 +9,22 @@ const Interview = () => {
   const jitsiContainerRef = useRef(null);
   const videoWrapperRef = useRef(null);
   
-  // Mount Guard to prevent React double-loading crashes
   const jitsiInitRef = useRef(false); 
   const isMounted = useRef(true);
   
   const [isLoading, setIsLoading] = useState(true);
-  const [sessionTime, setSessionTime] = useState(300); // 5 Min limit (300 seconds)
+  const [sessionTime, setSessionTime] = useState(300); // 5 Min limit
   const [jitsiApi, setJitsiApi] = useState(null);
 
-  // Modern Meeting States
   const [participantCount, setParticipantCount] = useState(1);
   const [isCopied, setIsCopied] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isHandRaised, setIsHandRaised] = useState(false);
 
-  // Hardware States
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [isVideoMuted, setIsVideoMuted] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
 
-  // Chat & Reaction States
   const [chatMessages, setChatMessages] = useState([]);
   const [currentMessage, setCurrentMessage] = useState("");
   const [floatingEmojis, setFloatingEmojis] = useState([]);
@@ -39,31 +35,30 @@ const Interview = () => {
     "Connecting to remote routing paths...",
   ]);
 
-  // --- STRICT IDENTITY & ROOM LINKING LOGIC ---
+  // --- IDENTITY & ROUTING LOGIC ---
   const myName = localStorage.getItem('username') || 'Unknown Node';
   const myRole = localStorage.getItem('role') || 'Candidate';
   
-  // Safely get target. If page reloads, grab from session storage to prevent connection loss.
+  // Safely grab the Candidate's name from routing state, fallback to session storage
   const passedTarget = location.state?.target;
-  if (passedTarget) {
-    sessionStorage.setItem('nexusTarget', passedTarget);
-  }
-  const targetCandidate = passedTarget || sessionStorage.getItem('nexusTarget') || "UnknownTarget";
+  useEffect(() => {
+    if (passedTarget) {
+      sessionStorage.setItem('nexusTarget', passedTarget);
+    }
+  }, [passedTarget]);
+  const targetCandidate = passedTarget || sessionStorage.getItem('nexusTarget') || "";
 
-  // STRICT ROOM RULE: The room is ALWAYS the Candidate's name.
-  const rawRoomName = myRole === 'Expert' ? targetCandidate : myName;
-  
-  // Normalize string to guarantee matching room hashes
+  const rawRoomName = myRole === 'Expert' && targetCandidate ? targetCandidate : myName;
   const normalizedRoomName = rawRoomName.trim().toLowerCase().replace(/\s+/g, '');
   const encodedRoomName = btoa(normalizedRoomName).replace(/=/g, '');
   const sanitizedRoomName = `NexusSync-${encodedRoomName}`;
 
-  // --- NEW DISCONNECT LOGIC (Routes to Assessment) ---
+  // --- BULLETPROOF DISCONNECT LOGIC ---
   const handleDisconnect = () => {
     if (jitsiApi) jitsiApi.dispose();
     
     if (myRole === 'Expert') {
-      // FIX: Changed from '/expert-dashboard' to '/expert' to match your URL!
+      // Pass the candidate's name back to the dashboard through routing state
       navigate('/expert', { 
         state: { 
           autoOpenAssessment: true, 
@@ -84,7 +79,6 @@ const Interview = () => {
     setTimeout(() => { if (isMounted.current) setActiveOverlay({ type: null, text: "" }) }, 10000); 
   };
 
-  // --- COUNTDOWN TIMER ---
   useEffect(() => {
     isMounted.current = true;
     const timer = setInterval(() => {
@@ -109,7 +103,6 @@ const Interview = () => {
     return `${m}:${s}`;
   };
 
-  // --- NATIVE JITSI INITIALIZATION ---
   useEffect(() => {
     if (jitsiInitRef.current) return;
     jitsiInitRef.current = true;
@@ -133,9 +126,7 @@ const Interview = () => {
     const initializeJitsi = async () => {
       await loadJitsiScript();
       
-      if (jitsiContainerRef.current) {
-        jitsiContainerRef.current.innerHTML = '';
-      }
+      if (jitsiContainerRef.current) jitsiContainerRef.current.innerHTML = '';
       
       const domain = 'meet.jit.si';
       const options = {
@@ -147,9 +138,9 @@ const Interview = () => {
         configOverwrite: {
           startWithAudioMuted: false,
           startWithVideoMuted: false,
-          prejoinPageEnabled: true, // Must be true for host to unlock room
+          prejoinPageEnabled: true,
           disableModeratorIndicator: false, 
-          subject: ' ', // Hide room name
+          subject: ' ',
         },
         interfaceConfigOverwrite: {
           DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
@@ -163,7 +154,6 @@ const Interview = () => {
       api = new window.JitsiMeetExternalAPI(domain, options);
       setJitsiApi(api);
 
-      // Failsafe: Remove loading screen after 4 seconds regardless of connection status
       setTimeout(() => {
         if (isMounted.current) setIsLoading(false);
       }, 4000);
@@ -186,7 +176,6 @@ const Interview = () => {
       });
       
       api.addListener('videoConferenceLeft', handleDisconnect);
-      
       api.addListener('audioMuteStatusChanged', ({ muted }) => setIsAudioMuted(muted));
       api.addListener('videoMuteStatusChanged', ({ muted }) => setIsVideoMuted(muted));
 
@@ -214,7 +203,6 @@ const Interview = () => {
     };
   }, [sanitizedRoomName, myName]);
 
-  // --- HARDWARE & MODERN CONTROLS ---
   const toggleMic = () => jitsiApi?.executeCommand('toggleAudio');
   const toggleCam = () => jitsiApi?.executeCommand('toggleVideo');
   const toggleShare = () => jitsiApi?.executeCommand('toggleShareScreen');
@@ -245,7 +233,6 @@ const Interview = () => {
     }
   };
 
-  // --- CHAT & COMMANDS ---
   const sendChatMessage = (e) => {
     e.preventDefault();
     if (!currentMessage.trim() || !jitsiApi) return;
@@ -288,7 +275,7 @@ const Interview = () => {
   };
 
   return (
-    <div className="h-screen max-h-screen w-full bg-[#020617] text-white flex flex-col font-sans overflow-hidden selection:bg-cyan-500 relative">
+    <div className="min-h-screen w-full bg-[#020617] text-white flex flex-col font-sans selection:bg-cyan-500 relative md:h-screen md:overflow-hidden overflow-y-auto">
       
       {/* Background Glows */}
       <div className="absolute inset-0 -z-10 pointer-events-none">
@@ -359,7 +346,7 @@ const Interview = () => {
       <main className="flex-1 flex flex-col lg:flex-row gap-6 p-4 md:p-6 relative z-10 max-w-[1800px] mx-auto w-full md:min-h-0 overflow-hidden">
         
         {/* === LEFT COLUMN === */}
-        <div className="flex-[2] lg:flex-[2.5] flex flex-col gap-4 relative min-h-0 w-full h-full">
+        <div className="flex-[2] lg:flex-[2.5] flex flex-col gap-4 relative md:min-h-0 w-full h-auto md:h-full">
           
           <div className="bg-blue-500/10 border border-blue-500/30 p-3 md:p-4 rounded-xl md:rounded-2xl flex items-start md:items-center gap-3 shrink-0 shadow-inner">
             <ShieldCheck className="text-blue-400 shrink-0 mt-1 md:mt-0" />
@@ -370,8 +357,8 @@ const Interview = () => {
           </div>
 
           {/* Video Container */}
-          <div ref={videoWrapperRef} className="flex-1 w-full relative rounded-xl md:rounded-[2.5rem] overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(6,182,212,0.1)] bg-black min-h-[450px] lg:min-h-0 group">
-            
+          <div ref={videoWrapperRef} className="flex-1 w-full relative rounded-xl md:rounded-[2.5rem] overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(6,182,212,0.1)] bg-black min-h-[450px] lg:min-h-0 group custom-scrollbar">
+
             <AnimatePresence>
               {isLoading && (
                 <motion.div 
@@ -452,7 +439,7 @@ const Interview = () => {
                 {isVideoMuted ? <VideoOff size={18} /> : <Video size={18} />}
               </button>
               <div className="w-px h-6 bg-white/10 mx-1 md:mx-2 hidden md:block" />
-              <button onClick={toggleShare} className="w-10 h-10 md:w-12 md:h-12 bg-white/10 hover:bg-cyan-500/20 hover:text-cyan-400 text-white rounded-xl md:rounded-2xl flex items-center justify-center transition-all">
+              <button onClick={toggleShare} className="w-10 h-10 md:w-12 md:h-12 bg-white/10 hover:bg-cyan-500/20 hover:text-cyan-400 text-white border border-transparent hover:border-cyan-500/30 rounded-xl md:rounded-2xl flex items-center justify-center transition-all">
                 <MonitorUp size={18} />
               </button>
               <button onClick={toggleHand} className={`w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center transition-all ${isHandRaised ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50' : 'bg-white/10 hover:bg-white/20 text-white'}`}>
@@ -475,7 +462,7 @@ const Interview = () => {
                   <button 
                     key={i}
                     onClick={() => sendReaction(reaction.label)}
-                    className={`w-10 h-10 md:w-12 md:h-12 bg-white/5 hover:bg-white/10 text-slate-300 border border-transparent hover:border ${reaction.color} rounded-xl md:rounded-2xl flex items-center justify-center transition-all hover:-translate-y-1 active:scale-90`}
+                    className={`w-10 h-10 md:w-12 md:h-12 bg-white/5 hover:bg-white/10 text-slate-300 border border-transparent hover:border ${reaction.color} rounded-xl md:rounded-2xl flex items-center justify-center transition-all hover:-translate-y-1 active:scale-90 shadow-lg`}
                   >
                     {reaction.icon}
                   </button>

@@ -6,7 +6,8 @@ import {
   LogOut, ChevronLeft, ChevronRight, 
   Search, ShieldCheck, UploadCloud, FileText,
   Zap, BrainCircuit, CheckCircle2, Sparkles,
-  BarChart3, AlertTriangle, User, Target, Mic2, Star, Clock, Network
+  BarChart3, AlertTriangle, User, Target, Mic2, Star, Clock, Network, ArrowRight, Play, Database,
+  Eye, Trash2
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -15,25 +16,29 @@ const CandidateDashboard = () => {
   
   // --- UI & Navigation States ---
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('match'); 
   
   // --- Data States ---
   const [user, setUser] = useState({ name: 'Candidate', skills: '', role: 'Candidate' });
   const [file, setFile] = useState(null);
   const [files, setFiles] = useState([]);
   const [uploadStatus, setUploadStatus] = useState('');
+
+  // --- New Resume Upload States ---
+  const [resumeFile, setResumeFile] = useState(null);
+  const [resumeUploadStatus, setResumeUploadStatus] = useState('');
+  const [isUploadingResume, setIsUploadingResume] = useState(false);
   
   // --- Feature States ---
-  const [experts, setExperts] = useState([]);
+  const [matches, setMatches] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [aiFeedback, setAiFeedback] = useState("");
   const [auditing, setAuditing] = useState(false);
+  const [matchError, setMatchError] = useState("");
 
-  // Simulated live ping for the new top header UI
   const [ping, setPing] = useState(14);
 
-  // --- INITIALIZATION ---
   useEffect(() => {
     const storedName = localStorage.getItem("username") || "Verified Candidate";
     const storedSkills = localStorage.getItem("skills") || "";
@@ -42,7 +47,6 @@ const CandidateDashboard = () => {
     setUser({ name: storedName, skills: storedSkills, role: storedRole });
     if (storedSkills) setIsVerified(true);
 
-    // Minor ping fluctuation effect for the telemetry UI
     const pingInterval = setInterval(() => {
       setPing(Math.floor(Math.random() * (22 - 12 + 1) + 12));
     }, 3000);
@@ -60,22 +64,52 @@ const CandidateDashboard = () => {
     navigate('/login');
   };
 
-  const handleJoinSync = (targetName) => {
-    navigate('/interview', { state: { target: targetName } });
+  const handleJoinSync = (expertName) => {
+    navigate('/interview', { state: { target: expertName } });
   };
 
-  // --- SECURE FILE VAULT ---
+  // --- NEW: RESUME UPLOAD LOGIC ---
+  const handleResumeUpload = async (e) => {
+    e.preventDefault();
+    if (!resumeFile) return setResumeUploadStatus('Please select a file.');
+
+    const formData = new FormData();
+    formData.append('file', resumeFile);
+    formData.append('username', user.name);
+
+    setIsUploadingResume(true);
+    setResumeUploadStatus('Encrypting & Uploading...');
+
+    try {
+      const res = await axios.post('http://localhost:5000/api/upload_resume', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data.status === "Success") {
+        setResumeUploadStatus('Resume successfully synced to Neural Core.');
+        setResumeFile(null);
+      }
+    } catch (err) {
+      setResumeUploadStatus('Upload failed. Check network link.');
+    } finally {
+      setIsUploadingResume(false);
+      setTimeout(() => setResumeUploadStatus(''), 4000);
+    }
+  };
+
+  // --- SECURE FILE VAULT LOGIC ---
   const fetchUserFiles = async () => {
     try {
-      const res = await axios.get(`https://expert-relevance-determination.onrender.com/api/vault/${user.name}`);
+      const res = await axios.get(`http://localhost:5000/api/vault/${user.name}`);
       setFiles(res.data.map(f => ({
-        name: f.filename,
-        size: f.size,
-        type: f.filename.split('.').pop().toUpperCase(),
-        date: new Date(f.upload_date).toLocaleDateString()
+        id: f.gridfs_id, 
+        name: f.filename || "Unknown Document",
+        size: f.size || "N/A",
+        type: (f.filename || "FILE").split('.').pop().toUpperCase(),
+        date: f.upload_date ? new Date(f.upload_date).toLocaleDateString() : "Unknown Date",
+        isLegacy: f.gridfs_id === f._id 
       })));
     } catch (err) {
-      console.log("Vault connection pending or empty...");
+      console.error("Vault connection error:", err);
     }
   };
 
@@ -91,13 +125,13 @@ const CandidateDashboard = () => {
     setUploadStatus('Encrypting & Uploading...');
 
     try {
-      const res = await axios.post('https://expert-relevance-determination.onrender.com/api/upload', formData, {
+      const res = await axios.post('http://localhost:5000/api/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       if (res.data.status === "Success") {
         setUploadStatus('Data securely logged in Vault.');
         setFile(null);
-        fetchUserFiles(); // Refresh the grid
+        fetchUserFiles();
       }
     } catch (err) {
       setUploadStatus('Upload failed. Check network link.');
@@ -107,12 +141,31 @@ const CandidateDashboard = () => {
     }
   };
 
-  // --- AI AUDITOR ---
+  const handleViewFile = (fileId, isLegacy) => {
+    if (isLegacy) {
+      alert("This is a legacy file from an older version of the vault and cannot be viewed. Please delete it and re-upload.");
+      return;
+    }
+    window.open(`http://localhost:5000/api/vault/view/${fileId}`, '_blank');
+  };
+
+  const handleDeleteFile = async (fileId) => {
+    if (!window.confirm("Are you sure you want to permanently delete this file from the Vault?")) return;
+    
+    try {
+      await axios.delete(`http://localhost:5000/api/vault/delete/${fileId}`);
+      fetchUserFiles();
+    } catch (err) {
+      console.error("Failed to delete file", err);
+      alert("Error: Could not delete file from database.");
+    }
+  };
+
   const auditProfile = async () => {
     setAuditing(true);
     setAiFeedback("");
     try {
-      const res = await axios.post('https://expert-relevance-determination.onrender.com/api/audit', { 
+      const res = await axios.post('http://localhost:5000/api/audit', { 
         skills: user.skills,
         username: user.name 
       });
@@ -124,31 +177,32 @@ const CandidateDashboard = () => {
     }
   };
 
-  // --- NEURAL MATCHING (TOP #1 EXPERT ONLY) ---
-  const runRelevanceEngine = async () => {
+  const runMatchEngine = async () => {
     setIsProcessing(true);
+    setMatchError("");
+    setMatches([]);
+
     try {
-      const res = await axios.post('https://expert-relevance-determination.onrender.com/api/match', {
-        skills: user.skills,
-        username: user.name
-      });
-      
-      const matchesArray = Array.isArray(res.data) ? res.data : [res.data];
-      
-      const sortedMatches = matchesArray.sort((a, b) => {
-        const scoreA = a.match_score || a.similarity || a.score || 0;
-        const scoreB = b.match_score || b.similarity || b.score || 0;
-        return scoreB - scoreA;
+      const res = await axios.post('http://localhost:5000/api/match', {
+        username: user.name,
+        skills: user.skills
       });
 
-      if (sortedMatches.length > 0 && sortedMatches[0]) {
-        setExperts([sortedMatches[0]]);
+      if (res.data && res.data.length > 0) {
+        const formattedMatches = res.data.slice(0, 3).map(match => ({
+           id: match.id || Math.random(),
+           expert_name: match.expert_name || match.name || "Verified Expert",
+           domain: match.domain || "Specialist",
+           score: typeof match.score === 'number' ? match.score.toFixed(1) : (match.match_score || 90.0)
+        }));
+        
+        setMatches(formattedMatches.sort((a, b) => b.score - a.score));
       } else {
-        setExperts([]);
+        setMatchError("No suitable experts found in the database. Please update your Vault skills.");
       }
-
     } catch (err) {
-      console.error(err);
+      console.error("Matching Error:", err);
+      setMatchError("Failed to connect to the Neural Match Engine.");
     } finally {
       setIsProcessing(false);
     }
@@ -163,13 +217,12 @@ const CandidateDashboard = () => {
     ));
   };
 
-  // --- REUSABLE SIDEBAR ITEM ---
   const SidebarItem = ({ icon: Icon, label, id }) => (
     <button
       onClick={() => setActiveTab(id)}
       className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all group ${
         activeTab === id 
-          ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.15)]' 
+          ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.15)]' 
           : 'text-slate-400 hover:bg-white/5 hover:text-white border border-transparent'
       }`}
     >
@@ -189,119 +242,84 @@ const CandidateDashboard = () => {
     </button>
   );
 
-  // --- CUSTOM TOP #1 MATCH PROFILE CARD ---
   const TopMatchProfile = ({ expert }) => {
-    const score = typeof expert.similarity === 'number' ? (expert.similarity * 100).toFixed(1) : (expert.match_score || 95.5);
-    const expertName = expert.name || expert.username || "Verified Expert";
-    const expertDomain = expert.domain || expert.role || "Senior AI/ML Architect";
+    const expertName = expert.expert_name;
+    const expertDomain = expert.domain;
+    const score = expert.score;
     
     return (
-      <motion.div 
-        initial={{ scale: 0.95, opacity: 0, y: 20 }} 
-        animate={{ scale: 1, opacity: 1, y: 0 }} 
-        transition={{ type: "spring", stiffness: 100 }}
-        className="relative bg-gradient-to-br from-[#041215] to-[#022c22] border border-emerald-500/30 rounded-[3.5rem] p-8 md:p-12 overflow-hidden shadow-2xl shadow-emerald-950/50 max-w-4xl mx-auto"
-      >
-        {/* Background Glows */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 blur-[80px] rounded-full" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 blur-[80px] rounded-full" />
-
-        {/* Top Badge */}
-        <div className="flex justify-between items-center mb-10 relative z-10">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full text-[10px] font-black uppercase tracking-widest">
-            <Sparkles size={14} /> Absolute Top Match
-          </div>
-          <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-widest">
-            <Network size={14} /> Neural Link Ready
-          </div>
+      <div className="bg-gradient-to-br from-emerald-950/40 to-[#020617] border border-emerald-500/20 p-8 rounded-[2.5rem] relative overflow-hidden shadow-2xl mb-6">
+        <div className="absolute -right-10 -bottom-10 opacity-5"><BrainCircuit size={200} /></div>
+        
+        <div className="flex justify-between items-center mb-8 relative z-10">
+          <span className="px-4 py-2 bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-full flex items-center gap-2 border border-emerald-500/20">
+            <Sparkles size={12}/> Absolute Top Match
+          </span>
+          {/* FIXED CSS CONFLICT HERE */}
+          <span className="hidden md:flex items-center gap-1 text-[10px] text-emerald-500/70 font-black uppercase tracking-widest">
+            <Network size={12}/> Neural Link Ready
+          </span>
         </div>
 
-        {/* Main Profile Area */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 relative z-10">
-          
-          {/* Left: Avatar & Score */}
-          <div className="flex flex-col items-center justify-center text-center space-y-6">
+        <div className="flex flex-col md:flex-row items-center md:items-start gap-10 relative z-10">
+          <div className="flex flex-col items-center shrink-0">
             <div className="relative">
               <div className="absolute inset-0 bg-emerald-500/20 rounded-full blur-xl animate-pulse" />
-              <div className="w-32 h-32 bg-black/60 border-2 border-emerald-500/50 rounded-full flex items-center justify-center relative z-10 shadow-inner">
-                <span className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-emerald-400 to-cyan-500">
+              <div className="w-28 h-28 bg-black/60 border-[6px] border-emerald-500/20 border-t-emerald-400 rounded-full flex items-center justify-center relative z-10 shadow-[0_0_30px_rgba(16,185,129,0.2)]">
+                <span className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-emerald-400 to-cyan-500">
                   {expertName.charAt(0)}
                 </span>
               </div>
             </div>
-            <div>
-              <p className="text-[10px] font-black text-emerald-500/70 uppercase tracking-[0.3em] mb-1">Relevance Score</p>
-              <h2 className="text-5xl font-black text-emerald-400 drop-shadow-[0_0_15px_rgba(16,185,129,0.4)]">
-                {score}%
-              </h2>
-            </div>
+            <p className="text-[9px] text-slate-400 font-black uppercase tracking-[0.2em] mt-4 mb-1">Relevance Score</p>
+            <h2 className="text-4xl font-black text-emerald-400 tracking-tighter drop-shadow-[0_0_15px_rgba(16,185,129,0.4)]">{score}%</h2>
           </div>
-
-          {/* Right: Details & Action */}
-          <div className="md:col-span-2 space-y-8">
-            <div>
-              <h2 className="text-3xl font-black text-white uppercase tracking-wider mb-2">{expertName}</h2>
-              <p className="text-sm font-bold text-cyan-400 uppercase tracking-widest">{expertDomain}</p>
+          
+          <div className="flex-1 text-center md:text-left">
+            <h2 className="text-3xl md:text-4xl font-black uppercase tracking-widest text-white mb-1">{expertName}</h2>
+            <p className="text-sm text-cyan-400 font-bold uppercase tracking-widest mb-6">{expertDomain} Expert</p>
+            
+            <div className="bg-black/40 border border-white/5 p-5 rounded-2xl mb-6 text-left backdrop-blur-md">
+              <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest mb-2 flex items-center gap-2"><BrainCircuit size={12}/> AI Synergy Analysis</p>
+              <p className="text-xs text-slate-300 leading-relaxed font-medium">This expert's operational parameters strongly align with your Vault data. Their historical evaluation data shows a <span className="text-emerald-400 font-bold">high correlation</span> with your detected competencies.</p>
             </div>
 
-            {/* AI Synergy Analysis */}
-            <div className="bg-black/40 border border-white/5 rounded-3xl p-6 backdrop-blur-md">
-              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2 mb-3">
-                <BrainCircuit size={14} className="text-emerald-400" /> AI Synergy Analysis
-              </h4>
-              <p className="text-sm text-slate-300 leading-relaxed font-medium">
-                This expert’s operational parameters strongly align with your Vault data. Their historical evaluation data shows a 
-                <span className="text-emerald-400 font-bold"> high correlation </span> 
-                with your detected competencies.
-              </p>
-            </div>
-
-            {/* Micro Stats */}
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap gap-4 mb-6 justify-center md:justify-start">
               <div className="px-4 py-3 bg-white/5 rounded-2xl flex items-center gap-3">
                 <Star size={16} className="text-yellow-500" />
-                <div>
+                <div className="text-left">
                   <p className="text-[8px] text-slate-500 uppercase font-black tracking-widest">Rating</p>
                   <p className="text-xs font-bold text-white">4.9/5.0</p>
                 </div>
               </div>
               <div className="px-4 py-3 bg-white/5 rounded-2xl flex items-center gap-3">
                 <Clock size={16} className="text-blue-400" />
-                <div>
+                <div className="text-left">
                   <p className="text-[8px] text-slate-500 uppercase font-black tracking-widest">Avg Response</p>
                   <p className="text-xs font-bold text-white">&lt; 2 Mins</p>
                 </div>
               </div>
-              <div className="px-4 py-3 bg-white/5 rounded-2xl flex items-center gap-3">
-                <ShieldCheck size={16} className="text-purple-400" />
-                <div>
-                  <p className="text-[8px] text-slate-500 uppercase font-black tracking-widest">Clearance</p>
-                  <p className="text-xs font-bold text-white">Level 4</p>
-                </div>
-              </div>
             </div>
-
-            {/* ACTION BUTTON - ONLY WAY IN! */}
+            
             <button 
-              onClick={() => handleJoinSync(expertName)}
-              className="w-full py-5 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-black font-black uppercase tracking-[0.2em] text-sm rounded-2xl flex items-center justify-center gap-3 transition-all shadow-[0_0_40px_rgba(16,185,129,0.3)] hover:shadow-[0_0_60px_rgba(16,185,129,0.5)] active:scale-[0.98]"
+              onClick={() => handleJoinSync(expertName)} 
+              className="w-full md:w-auto px-8 py-4 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-black font-black uppercase tracking-[0.2em] text-xs rounded-xl transition-all shadow-[0_0_40px_rgba(16,185,129,0.3)] hover:shadow-[0_0_60px_rgba(16,185,129,0.5)] active:scale-[0.98] flex items-center justify-center gap-2"
             >
-              <Mic2 size={18} /> Establish Neural Link
+               <Mic2 size={16} /> Establish Neural Link
             </button>
-
           </div>
         </div>
-      </motion.div>
+      </div>
     );
   };
 
   return (
     <div className="min-h-screen bg-[#020617] text-white flex overflow-hidden selection:bg-blue-500 selection:text-black font-sans">
       
-      {/* Background Glow */}
+      {/* Background Glows */}
       <div className="absolute inset-0 -z-10 pointer-events-none">
-        <div className="absolute top-[20%] left-[-10%] w-[40vw] h-[40vw] bg-blue-600/10 blur-[120px] rounded-full mix-blend-screen" />
-        <div className="absolute bottom-[-10%] right-[10%] w-[30vw] h-[30vw] bg-emerald-500/10 blur-[100px] rounded-full mix-blend-screen" />
+        <div className="absolute top-[20%] left-[-10%] w-[40vw] h-[40vw] bg-blue-600/10 blur-[150px] rounded-full mix-blend-screen" />
+        <div className="absolute bottom-[-10%] right-[10%] w-[30vw] h-[30vw] bg-emerald-500/10 blur-[120px] rounded-full mix-blend-screen" />
       </div>
 
       {/* --- SIDEBAR --- */}
@@ -317,7 +335,7 @@ const CandidateDashboard = () => {
         </button>
 
         <div className="flex items-center gap-3 mb-12">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-emerald-600 p-0.5 shrink-0">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-cyan-600 p-0.5 shrink-0">
             <div className="w-full h-full bg-[#020617] rounded-full flex items-center justify-center">
               <ShieldCheck className="text-blue-400" size={24} />
             </div>
@@ -334,7 +352,7 @@ const CandidateDashboard = () => {
 
         <nav className="flex-1 space-y-3">
           <SidebarItem icon={Activity} label="Overview" id="overview" />
-          <SidebarItem icon={Cpu} label="Match Engine" id="match" />
+          <SidebarItem icon={BrainCircuit} label="Match Engine" id="match" />
           <SidebarItem icon={FolderOpen} label="Data Vault" id="vault" />
           <SidebarItem icon={BarChart3} label="Performance" id="results" />
         </nav>
@@ -360,37 +378,27 @@ const CandidateDashboard = () => {
         {/* Topbar */}
         <header className="h-24 px-6 md:px-10 flex items-center justify-between border-b border-white/5 bg-white/[0.02] backdrop-blur-md shrink-0">
           <div>
-            <h1 className="text-xl md:text-2xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-500">
-              Identify: {user.name}
+            <h1 className="text-xl md:text-2xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 flex items-center gap-3">
+              Identify: <span className="text-white">{user.name}</span>
             </h1>
             <p className="text-xs text-slate-400 font-mono mt-1 flex items-center gap-2">
               Status: <span className="text-blue-400 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span> Connected</span>
             </p>
           </div>
           
-          {/* REPLACED BUTTON WITH TELEMETRY WIDGET */}
-          <div className="flex items-center gap-6">
-            
-            {/* Dynamic Telemetry Badge */}
-            <div className="hidden md:flex items-center gap-4 px-5 py-2.5 bg-black/40 border border-white/10 rounded-2xl backdrop-blur-md shadow-inner">
-              <div className="flex items-center gap-2">
-                <Network size={14} className="text-emerald-400 animate-pulse" />
-                <div className="flex flex-col">
-                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Latency</span>
-                  <span className="text-xs font-bold text-emerald-400 font-mono leading-none">{ping}ms</span>
-                </div>
+          {/* FIXED CSS CONFLICT HERE */}
+          <div className="hidden md:flex items-center gap-4">
+            <div className="flex items-center gap-4 bg-black/40 border border-white/10 rounded-full px-6 py-2">
+              <div className="flex flex-col border-r border-white/10 pr-4">
+                <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Latency</span>
+                <span className="text-xs text-emerald-400 font-bold flex items-center gap-1"><Network size={12}/> {ping}ms</span>
               </div>
-              <div className="w-px h-6 bg-white/10" />
-              <div className="flex items-center gap-2">
-                <ShieldCheck size={14} className="text-blue-400" />
-                <div className="flex flex-col">
-                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Protocol</span>
-                  <span className="text-xs font-bold text-white tracking-widest uppercase leading-none">Aegis V2</span>
-                </div>
+              <div className="flex flex-col pl-2">
+                <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Protocol</span>
+                <span className="text-xs text-white font-bold flex items-center gap-1"><ShieldCheck size={12}/> AEGIS V2</span>
               </div>
             </div>
-
-            <div className="w-10 h-10 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center animate-pulse shrink-0">
+            <div className="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/30 flex items-center justify-center shrink-0">
               <BrainCircuit className="text-blue-400" size={18} />
             </div>
           </div>
@@ -409,7 +417,7 @@ const CandidateDashboard = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-white/5 border border-white/10 p-6 rounded-[2rem] backdrop-blur-md hover:-translate-y-1 transition-transform">
                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Matching Status</p>
-                      <p className="text-white font-bold text-lg">{experts.length > 0 ? "Sequence Ready" : "Awaiting Sync"}</p>
+                      <p className="text-white font-bold text-lg">{matches.length > 0 ? "Sequence Ready" : "Awaiting Sync"}</p>
                     </div>
                     <div className="bg-white/5 border border-white/10 p-6 rounded-[2rem] backdrop-blur-md hover:-translate-y-1 transition-transform">
                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Integrity Score</p>
@@ -446,6 +454,41 @@ const CandidateDashboard = () => {
                         </button>
                       )}
                     </div>
+
+                    {/* Resume Upload Section */}
+                    <div className="mt-6 pt-6 border-t border-white/5">
+                      <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2 mb-4">
+                        <UploadCloud size={14} className="text-emerald-400" /> Primary Resume Sync
+                      </h4>
+                      <form onSubmit={handleResumeUpload} className="flex flex-col gap-3">
+                        <div className="relative group cursor-pointer">
+                          <div className="absolute inset-0 bg-emerald-500/10 blur-md rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <div className="relative border border-dashed border-emerald-500/30 hover:border-emerald-400 bg-black/40 rounded-xl p-4 flex flex-col items-center justify-center transition-all">
+                            <input
+                              type="file"
+                              onChange={(e) => setResumeFile(e.target.files[0])}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              accept=".pdf,.docx,.doc"
+                            />
+                            <p className="text-xs font-bold text-slate-300 tracking-widest uppercase text-center">
+                              {resumeFile ? resumeFile.name : "Select Resume File (PDF/DOCX)"}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={!resumeFile || isUploadingResume}
+                          className="w-full py-3 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500 hover:text-black disabled:opacity-50 text-emerald-400 font-black text-[10px] tracking-[0.2em] uppercase rounded-xl flex items-center justify-center gap-2 transition-all"
+                        >
+                          {isUploadingResume ? "SYNCING..." : "UPLOAD RESUME"}
+                        </button>
+                        {resumeUploadStatus && (
+                          <p className="text-[10px] font-bold tracking-widest text-emerald-400 uppercase text-center mt-2">
+                            {resumeUploadStatus}
+                          </p>
+                        )}
+                      </form>
+                    </div>
                   </div>
                 </div>
 
@@ -461,7 +504,7 @@ const CandidateDashboard = () => {
                       {[
                         { step: "Node Confirmed", status: "complete" },
                         { step: "Skill Sync", status: "active" },
-                        { step: "Expert Match", status: experts.length > 0 ? "complete" : "pending" },
+                        { step: "Expert Match", status: matches.length > 0 ? "complete" : "pending" },
                         { step: "Live Board", status: "pending" }
                       ].map((s, i) => (
                         <div key={i} className="flex gap-4 items-center relative z-10">
@@ -480,7 +523,7 @@ const CandidateDashboard = () => {
 
                   {/* Sync Button */}
                   <button 
-                    onClick={() => { setActiveTab('match'); runRelevanceEngine(); }}
+                    onClick={() => { setActiveTab('match'); runMatchEngine(); }}
                     disabled={isProcessing}
                     className="w-full py-6 bg-gradient-to-br from-blue-600 to-emerald-600 rounded-[2rem] font-black text-xs uppercase tracking-[0.3em] shadow-xl shadow-blue-950/40 hover:scale-[1.02] transition-all"
                   >
@@ -492,39 +535,86 @@ const CandidateDashboard = () => {
 
             {/* MATCH ENGINE TAB */}
             {activeTab === 'match' && (
-              <motion.div key="match" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="w-full">
+              <motion.div key="match" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="max-w-5xl mx-auto space-y-8">
                 
-                {experts.length > 0 ? (
-                  <div className="pt-4">
-                     <TopMatchProfile expert={experts[0]} />
+                {/* Trigger Section */}
+                <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white/5 border border-white/10 p-6 rounded-[2rem] backdrop-blur-md">
+                  <div>
+                    <h2 className="text-lg font-black uppercase tracking-widest text-white">Neural Match Engine</h2>
+                    <p className="text-xs text-slate-400 font-medium mt-1">Scan the database to find experts mathematically aligned with your Vault data.</p>
                   </div>
+                  <button 
+                    onClick={runMatchEngine}
+                    disabled={isProcessing}
+                    className="px-8 py-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-900 disabled:opacity-50 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl flex items-center gap-3 transition-all shadow-[0_0_30px_rgba(37,99,235,0.3)] active:scale-95 whitespace-nowrap"
+                  >
+                    {isProcessing ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Play size={16} />}
+                    {isProcessing ? "Calculating Vectors..." : "Run AI Sequence"}
+                  </button>
+                </div>
+
+                {/* Error State */}
+                {matchError && (
+                  <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-bold text-center rounded-2xl">
+                    {matchError}
+                  </div>
+                )}
+
+                {/* Match Results Matrix */}
+                {matches.length > 0 ? (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                    
+                    {/* #1 ABSOLUTE TOP MATCH */}
+                    <TopMatchProfile expert={matches[0]} />
+
+                    {/* #2 & #3 SECONDARY MATCHES */}
+                    {matches.length > 1 && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {matches.slice(1, 3).map((match, i) => (
+                          <div key={match.id} className="bg-white/5 border border-white/10 p-6 rounded-[2rem] backdrop-blur-md flex flex-col hover:bg-white/10 transition-colors">
+                            <div className="flex items-center justify-between mb-6">
+                              <span className="px-3 py-1 bg-blue-500/10 text-blue-400 text-[9px] font-black uppercase tracking-widest rounded-full border border-blue-500/20 flex items-center gap-1">
+                                <Zap size={10} /> Highly Relevant
+                              </span>
+                              <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Match #{i + 2}</span>
+                            </div>
+                            
+                            <div className="flex items-center gap-5 mb-6">
+                              <div className="w-16 h-16 rounded-full border-4 border-blue-500/20 border-t-blue-400 flex items-center justify-center bg-black/40 shrink-0">
+                                <span className="text-xl font-black text-blue-400">{match.expert_name.charAt(0)}</span>
+                              </div>
+                              <div>
+                                <h3 className="text-lg font-black uppercase tracking-wider text-white truncate">{match.expert_name}</h3>
+                                <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-1">{match.domain}</p>
+                              </div>
+                            </div>
+                            
+                            <div className="mt-auto flex items-center justify-between border-t border-white/5 pt-6">
+                              <div>
+                                <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-1">Score</p>
+                                <p className="text-xl font-black text-blue-400">{match.score}%</p>
+                              </div>
+                              <button 
+                                onClick={() => handleJoinSync(match.expert_name)} 
+                                className="px-4 py-2.5 bg-blue-500/10 hover:bg-blue-500 text-blue-400 hover:text-white border border-blue-500/30 rounded-lg font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2"
+                              >
+                                Connect <ChevronRight size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
                 ) : (
+                  // Default Empty State for Match Engine
                   <div className="max-w-4xl mx-auto text-center mt-12">
-                    <Cpu size={56} className="text-emerald-400 mx-auto mb-6 animate-pulse" />
-                    <h2 className="text-3xl md:text-4xl font-black uppercase tracking-widest text-emerald-400 mb-4">Relevance Engine</h2>
+                    <Cpu size={56} className="text-blue-400 mx-auto mb-6 opacity-50" />
+                    <h2 className="text-3xl font-black uppercase tracking-widest text-slate-500 mb-4">Neural Match Engine</h2>
                     <p className="text-sm text-slate-400 font-medium max-w-lg mx-auto leading-relaxed mb-12">
                       Initialize the AI Matrix to compare your uploaded Vault data against active Expert requirements. 
-                      Only the highest matched expert will be retrieved.
+                      Click the "Run AI Sequence" button above to begin.
                     </p>
-                    
-                    <div className="bg-black/40 border border-white/10 p-4 rounded-[3rem] backdrop-blur-md relative overflow-hidden">
-                      <button 
-                        onClick={runRelevanceEngine} 
-                        disabled={isProcessing}
-                        className="relative group w-full py-8 rounded-[2.5rem] overflow-hidden border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all"
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/0 via-emerald-500/20 to-emerald-500/0 -translate-x-full group-hover:animate-[shimmer_2s_infinite]" />
-                        <div className="relative flex items-center justify-center gap-4 text-emerald-400 font-black tracking-[0.2em] uppercase text-lg">
-                          {isProcessing ? (
-                            <span className="animate-pulse flex items-center gap-3">
-                              <BrainCircuit className="animate-spin" /> Scanning Expert Nodes...
-                            </span>
-                          ) : (
-                            <><Zap size={24} /> Initiate Scan Sequence</>
-                          )}
-                        </div>
-                      </button>
-                    </div>
                   </div>
                 )}
               </motion.div>
@@ -576,14 +666,31 @@ const CandidateDashboard = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {files.length > 0 ? files.map((f, i) => (
                       <div key={i} className="p-5 bg-white/5 border border-white/10 rounded-[1.5rem] flex justify-between items-center group hover:bg-white/[0.07] transition-all">
-                        <div className="flex items-center gap-4">
-                          <div className="p-3 bg-black/40 rounded-xl"><FileText className="text-blue-400" size={20} /></div>
-                          <div>
-                            <p className="text-sm font-bold text-white max-w-[150px] truncate">{f.name}</p>
+                        <div className="flex items-center gap-4 min-w-0 pr-4">
+                          <div className="p-3 bg-black/40 rounded-xl shrink-0"><FileText className="text-blue-400" size={20} /></div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-white truncate w-32 md:w-40">{f.name}</p>
                             <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mt-1">{f.type} • {f.date}</p>
                           </div>
                         </div>
-                        <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[8px] font-black rounded-lg uppercase tracking-widest">Synced</div>
+                        
+                        {/* VIEW & DELETE ACTION BUTTONS */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button 
+                            onClick={() => handleViewFile(f.id, f.isLegacy)} 
+                            className="p-2.5 bg-blue-500/10 hover:bg-blue-500 hover:text-white text-blue-400 rounded-xl transition-all" 
+                            title="View Secure File"
+                          >
+                            <Eye size={14} />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteFile(f.id)} 
+                            className="p-2.5 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 rounded-xl transition-all" 
+                            title="Delete Permanently"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
                     )) : (
                       <div className="md:col-span-2 p-10 border border-dashed border-white/10 rounded-[2rem] text-center text-slate-500 font-bold uppercase text-xs tracking-widest">
@@ -599,9 +706,9 @@ const CandidateDashboard = () => {
             {activeTab === 'results' && (
                <motion.div key="results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-[60vh] flex flex-col items-center justify-center text-center">
                  <BarChart3 size={64} className="mx-auto mb-6 text-slate-700 animate-pulse" />
-                 <h3 className="text-2xl font-black text-slate-600 uppercase tracking-widest mb-4">Metrics Pending</h3>
-                 <button onClick={() => navigate('/result')} className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-blue-400 font-black uppercase tracking-widest text-[10px] transition-all">
-                   Check Evaluation History
+                 <h3 className="text-2xl font-black text-slate-600 uppercase tracking-widest mb-4">Evaluation Data Ready</h3>
+                 <button onClick={() => navigate('/result')} className="px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-blue-400 font-black uppercase tracking-[0.2em] text-[10px] transition-all">
+                   View Official Transcript
                  </button>
                </motion.div>
             )}

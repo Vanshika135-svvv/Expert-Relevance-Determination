@@ -1,12 +1,15 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS  # Standard for React integration
 from pymongo import MongoClient
+from gridfs import GridFS
+from bson.objectid import ObjectId
 import pandas as pd
 import os
+import io
 from dotenv import load_dotenv
 from datetime import datetime
 from werkzeug.utils import secure_filename
-from werkzeug.security import generate_password_hash, check_password_hash # Security imports
+from werkzeug.security import generate_password_hash, check_password_hash 
 
 # Import custom AI logic from the src folder
 from src.text_processor import preprocess_text
@@ -18,24 +21,18 @@ load_dotenv()
 app = Flask(__name__)
 
 # ==========================================
-# 1. CONFIGURATION & DIRECTORY SETUP
+# 1. CONFIGURATION & SETUP
 # ==========================================
 CORS(app)
 
-# Vault Storage Configuration
-UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'pdf', 'xlsx', 'xls', 'docx', 'png', 'jpg'}
-
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
-
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+
 # ==========================================
-# 2. DATABASE CONNECTION
+# 2. DATABASE CONNECTION & GRIDFS BUCKET
 # ==========================================
 MONGO_URI = os.getenv("MONGO_URI")
 
@@ -48,11 +45,18 @@ if not MONGO_URI:
 # Connect to DB
 client = MongoClient(MONGO_URI)
 db = client['NexusRAC']
+
+# Define Collections
 experts_col = db['experts']
 users_col = db['users']
 interviews_col = db['interviews']
-vault_col = db['vault'] # Metadata for uploaded files
-assessments_col = db['assessments'] # Collection for storing Expert Evaluations
+vault_col = db['vault'] # Metadata for general uploaded files
+assessments_col = db['assessments'] 
+resumes_col = db['resumes'] # NEW: Collection for Primary Resumes
+
+# Initialize MongoDB GridFS Bucket 
+fs = GridFS(db)
+
 
 # ==========================================
 # 3. BACKEND API ROUTES
@@ -61,75 +65,62 @@ assessments_col = db['assessments'] # Collection for storing Expert Evaluations
 @app.route('/')
 def index():
     return jsonify({
-        "status": "Success",
-        "message": "Nexus RAC Flask Backend is running!",
-        "version": "1.4.0"
+        "status": "Success", 
+        "message": "Nexus RAC Flask Backend Running!",
+        "version": "2.2.0 (Resume Sync Enabled)"
     })
+
 
 @app.route('/api/health_check', methods=['GET'])
 def health_check():
     try:
         client.admin.command('ping')
-        e_count = experts_col.count_documents({})
-        c_count = users_col.count_documents({"role": "Candidate"})
-        return jsonify({
-            "status": "Optimal", 
-            "db_status": "Connected", 
-            "experts": e_count, 
-            "candidates": c_count
-        })
+        return jsonify({"status": "Optimal", "db_status": "Connected"})
     except Exception as e:
         return jsonify({"status": "Critical", "db_status": "Disconnected", "error": str(e)}), 500
+
 
 # --- SECURE SIGNUP ROUTE ---
 @app.route('/api/signup', methods=['POST'])
 def register_user():
     try:
         data = request.get_json()
-        
-        # Check for duplicates (Username or Email)
         existing_user = users_col.find_one({
-            "$or": [
-                {"username": data['username']},
-                {"email": data['email']}
-            ]
+            "$or": [{"username": data['username']}, {"email": data['email']}]
         })
         
         if existing_user:
             return jsonify({"status": "Error", "message": "Username or Email already registered."}), 400
 
-        # Hash the password
         hashed_password = generate_password_hash(data['password'], method='pbkdf2:sha256')
-
+        
         users_col.insert_one({
             "username": data['username'], 
             "email": data['email'],
             "password": hashed_password, 
             "role": data['role'], 
             "skills": data.get('skills', 'N/A'),
-            "createdAt": datetime.now()
+            "createdAt": datetime.utcnow()
         })
         return jsonify({"status": "Success"})
     except Exception as e:
         return jsonify({"status": "Error", "message": str(e)}), 500
 
-# --- SECURE LOGIN ROUTE (Email & Username Support) ---
+
+# --- SECURE LOGIN ROUTE ---
 @app.route('/api/login', methods=['POST'])
 def login_user():
     try:
         data = request.get_json()
         user = users_col.find_one({
-            "$or": [
-                {"username": data['username']},
-                {"email": data['username']}
-            ]
+            "$or": [{"username": data['username']}, {"email": data['username']}]
         })
-
+        
         if user and check_password_hash(user['password'], data['password']):
             return jsonify({
-                "status": "Success",
-                "role": user['role'],
-                "username": user['username'],
+                "status": "Success", 
+                "role": user['role'], 
+                "username": user['username'], 
                 "skills": user.get('skills', 'N/A')
             })
         else:
@@ -137,27 +128,64 @@ def login_user():
     except Exception as e:
         return jsonify({"status": "Error", "message": str(e)}), 500
 
-# --- AI PROFILE AUDITOR (Skill Fresher Feature) ---
+
+# --- AI PROFILE AUDITOR ---
 @app.route('/api/audit', methods=['POST'])
 def audit_profile():
-    try:
-        data = request.json
-        skills = data.get('skills', '').lower()
+    data = request.json
+    skills = data.get('skills', '').lower()
+    
+    feedback = "Your profile is strong in technical implementation. "
+    if "python" in skills or "ai" in skills:
+        feedback += "Consider adding frameworks like PyTorch or TensorFlow to increase relevance."
+    elif "react" in skills:
+        feedback += "Focus on Advanced Design Patterns to reach Senior Expert levels."
+    else:
+        feedback += "Expand your Skill Vector with core industry technologies."
         
-        # Neural Feedback Logic
-        feedback = "Your profile is strong in technical implementation. "
-        if "python" in skills or "ai" in skills:
-            feedback += "Consider adding specific frameworks like PyTorch or TensorFlow to increase your Expert Relevance score."
-        elif "react" in skills:
-            feedback += "Focus on Advanced Design Patterns or State Management (Redux/Zustand) to reach Senior Expert levels."
-        else:
-            feedback += "Expand your Skill Vector with core industry technologies to trigger more high-level matches."
+    return jsonify({"feedback": feedback})
 
-        return jsonify({"feedback": feedback})
+
+# --- NEW: PRIMARY RESUME UPLOAD DIRECTLY TO GRIDFS ---
+@app.route('/api/upload_resume', methods=['POST'])
+def upload_resume():
+    try:
+        if 'file' not in request.files:
+            return jsonify({"status": "Error", "message": "No file part"}), 400
+        
+        file = request.files['file']
+        username = request.form.get('username') 
+
+        if file.filename == '':
+            return jsonify({"status": "Error", "message": "No selected file"}), 400
+
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            
+            file.seek(0, os.SEEK_END)
+            file_length = file.tell()
+            file.seek(0)
+            
+            # Put file directly into MongoDB GridFS bucket
+            file_id = fs.put(file, filename=filename, metadata={"username": username, "type": "primary_resume"}, content_type=file.content_type)
+
+            # Store metadata safely in the NEW Resumes collection
+            resumes_col.insert_one({
+                "username": username,
+                "filename": filename,
+                "gridfs_id": file_id,
+                "upload_date": datetime.utcnow(),
+                "size": f"{file_length / 1024:.2f} KB"
+            })
+
+            return jsonify({"status": "Success", "filename": filename})
+        
+        return jsonify({"status": "Error", "message": "File type not allowed"}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"status": "Error", "message": str(e)}), 500
 
-# --- SECURE FILE VAULT: UPLOAD ---
+
+# --- SECURE FILE VAULT: UPLOAD DIRECTLY TO MONGODB GRIDFS ---
 @app.route('/api/upload', methods=['POST'])
 def upload_file():
     try:
@@ -172,18 +200,19 @@ def upload_file():
 
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
-            # Add timestamp to prevent name collisions
-            timestamped_name = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{filename}"
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], timestamped_name)
-            file.save(file_path)
+            
+            file.seek(0, os.SEEK_END)
+            file_length = file.tell()
+            file.seek(0)
+            
+            file_id = fs.put(file, filename=filename, metadata={"username": username}, content_type=file.content_type)
 
-            # Store metadata
             vault_col.insert_one({
                 "username": username,
                 "filename": filename,
-                "server_filename": timestamped_name,
-                "upload_date": datetime.now(),
-                "size": f"{os.path.getsize(file_path) / 1024:.2f} KB"
+                "gridfs_id": file_id,
+                "upload_date": datetime.utcnow(),
+                "size": f"{file_length / 1024:.2f} KB"
             })
 
             return jsonify({"status": "Success", "filename": filename})
@@ -192,30 +221,68 @@ def upload_file():
     except Exception as e:
         return jsonify({"status": "Error", "message": str(e)}), 500
 
-# --- SECURE FILE VAULT: RETRIEVE ---
+
+# --- SECURE FILE VAULT: RETRIEVE LIST ---
 @app.route('/api/vault/<username>', methods=['GET'])
 def get_vault_files(username):
     try:
-        user_files = list(vault_col.find({"username": username}, {"_id": 0}))
+        user_files = list(vault_col.find({"username": username}))
+        for f in user_files:
+            f['_id'] = str(f['_id'])
+            f['gridfs_id'] = str(f.get('gridfs_id', f['_id'])) 
         return jsonify(user_files)
     except Exception as e:
+        print(f"Vault Fetch Error: {e}")
         return jsonify({"error": str(e)}), 500
 
+
+# --- VIEW FILE DIRECTLY FROM MONGODB ---
+@app.route('/api/vault/view/<file_id>', methods=['GET'])
+def view_file(file_id):
+    try:
+        grid_out = fs.get(ObjectId(file_id))
+        return send_file(
+            io.BytesIO(grid_out.read()),
+            mimetype=grid_out.content_type or 'application/octet-stream',
+            download_name=grid_out.filename,
+            as_attachment=False 
+        )
+    except Exception as e:
+        print(f"Error serving file: {e}")
+        return jsonify({"error": "File not found or corrupted. May be a legacy file."}), 404
+
+
+# --- DELETE FILE FROM MONGODB ---
+@app.route('/api/vault/delete/<file_id>', methods=['DELETE'])
+def delete_file(file_id):
+    try:
+        try:
+            fs.delete(ObjectId(file_id))
+        except:
+            pass 
+        
+        vault_col.delete_one({"$or": [{"gridfs_id": ObjectId(file_id)}, {"_id": ObjectId(file_id)}]})
+        
+        return jsonify({"status": "Success", "message": "File deleted securely."})
+    except Exception as e:
+        print(f"Delete Error: {e}")
+        return jsonify({"status": "Error", "message": "Failed to delete file."}), 500
+
+
+# --- LIVE BOARD CREATION ROUTE ---
 @app.route('/api/create_board', methods=['POST'])
 def create_board():
-    try:
-        data = request.get_json()
-        interviews_col.insert_one({
-            "boardSubject": data['subject'], 
-            "boardDate": data['date'],
-            "status": "Live",
-            "assignedExpert": "Pending Match", 
-            "candidateName": "Not Assigned",   
-            "createdAt": datetime.now()
-        })
-        return jsonify({"status": "Success"})
-    except Exception as e:
-        return jsonify({"status": "Error", "message": str(e)}), 500
+    data = request.get_json()
+    interviews_col.insert_one({
+        "boardSubject": data['subject'], 
+        "boardDate": data['date'], 
+        "status": "Live",
+        "assignedExpert": "Pending Match", 
+        "candidateName": "Not Assigned", 
+        "createdAt": datetime.utcnow()
+    })
+    return jsonify({"status": "Success"})
+
 
 # --- AI MATCHING ROUTE ---
 @app.route('/api/match', methods=['POST'])
@@ -254,24 +321,11 @@ def match_expert():
                 results.append({
                     "id": int(index), 
                     "expert_name": str(row[name_col]),
-                    "domain": str(row[sub_col]),
-                    "experience": int(row.get('experience', 5)) if 'experience' in row else 5, 
+                    "domain": str(row[sub_col]), 
                     "score": float(score)
                 })
 
         results = sorted(results, key=lambda x: x['score'], reverse=True)
-
-        if board_subject and len(results) > 0:
-            best_match_name = results[0]["expert_name"]
-            interviews_col.update_one(
-                {"boardSubject": board_subject, "status": "Live"}, 
-                {"$set": {
-                    "assignedExpert": best_match_name,
-                    "candidateName": current_user,
-                    "status": "Active" 
-                }}
-            )
-        
         return jsonify(results)
         
     except Exception as e:
@@ -283,45 +337,32 @@ def match_expert():
 def save_assessment():
     try:
         data = request.get_json()
-        
-        # Create the document structure
-        assessment_doc = {
-            "expert_name": data.get('expert_name'),
+        assessments_col.insert_one({
+            "expert_name": data.get('expert_name'), 
             "candidate_name": data.get('candidate_name'),
-            "score": data.get('score'),
-            "remarks": data.get('remarks', ''),
+            "score": data.get('score'), 
+            "remarks": data.get('remarks', ''), 
             "timestamp": datetime.utcnow()
-        }
-        
-        # Insert into MongoDB
-        assessments_col.insert_one(assessment_doc)
-        
+        })
         return jsonify({"status": "Success", "message": "Assessment recorded securely."})
-        
     except Exception as e:
-        print(f"Database Error: {e}")
         return jsonify({"status": "Error", "message": "Failed to record assessment."}), 500
 
 
-# --- NEW: RETRIEVE EXPERT ASSESSMENT ROUTE ---
+# --- RETRIEVE EXPERT ASSESSMENT ROUTE ---
 @app.route('/api/assessments/<candidate_name>', methods=['GET'])
 def get_candidate_assessment(candidate_name):
     try:
-        # Fetch the most recent assessment for this specific candidate
         assessment = assessments_col.find_one(
-            {"candidate_name": candidate_name},
-            sort=[("timestamp", -1)], # Retrieves the newest evaluation
-            projection={"_id": 0} # Hides the MongoDB ObjectID from the frontend
+            {"candidate_name": candidate_name}, 
+            sort=[("timestamp", -1)], 
+            projection={"_id": 0}
         )
-        
         if assessment:
             return jsonify({"status": "Success", "data": assessment})
-        else:
-            # If the expert hasn't submitted yet, return a 404 Pending status
-            return jsonify({"status": "Pending", "message": "No assessment found yet."}), 404
             
+        return jsonify({"status": "Pending", "message": "No assessment found yet."}), 404
     except Exception as e:
-        print(f"Database Error: {e}")
         return jsonify({"status": "Error", "message": "Failed to fetch assessment."}), 500
 
 
