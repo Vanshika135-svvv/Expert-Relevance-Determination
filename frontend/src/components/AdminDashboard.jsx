@@ -135,10 +135,10 @@ const AdminDashboard = () => {
   // ==========================================
   const fetchAdminData = async () => {
     try {
-      const userRes = await axios.get('http://localhost:5000/api/admin/users');
+      const userRes = await axios.get('https://expert-relevance-determination.onrender.com/api/admin/users');
       setUserList(userRes.data);
       
-      const vaultRes = await axios.get('http://localhost:5000/api/admin/vault_logs');
+      const vaultRes = await axios.get('https://expert-relevance-determination.onrender.com/api/admin/vault_logs');
       setVaultLogs(vaultRes.data);
     } catch (err) {
       console.error("Failed to sync live admin data.");
@@ -147,7 +147,7 @@ const AdminDashboard = () => {
 
   const fetchDiagnostics = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/health_check');
+      const response = await axios.get('https://expert-relevance-determination.onrender.com/api/health_check');
       setStats(response.data);
     } catch (error) {
       setStats({ 
@@ -161,7 +161,7 @@ const AdminDashboard = () => {
 
   const fetchBoards = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/boards');
+      const res = await axios.get('https://expert-relevance-determination.onrender.com/api/boards');
       setActiveBoards(res.data);
     } catch (error) {
       console.error("Failed to fetch active boards.");
@@ -180,13 +180,13 @@ const AdminDashboard = () => {
     setLoadingBoard(true);
     
     try {
-      await axios.post('http://localhost:5000/api/create_board', {
+      await axios.post('https://expert-relevance-determination.onrender.com/api/create_board', {
         subject: board.subject,
         date: board.date
       });
       
       // Automatically broadcast to the entire network when a board is made
-      await axios.post('http://localhost:5000/api/notifications', {
+      await axios.post('https://expert-relevance-determination.onrender.com/api/notifications', {
         recipient: 'ALL', 
         sender: `System Admin`, 
         message: `New Interview Board Initialized: ${board.subject} on ${board.date}. Eligible candidates and experts please prepare for sync.`, 
@@ -210,7 +210,7 @@ const AdminDashboard = () => {
   const fetchNotifications = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:5000/api/notifications/${encodeURIComponent(adminName)}`
+        `https://expert-relevance-determination.onrender.com/api/notifications/${encodeURIComponent(adminName)}`
       );
       setNotifications(res.data);
     } catch (err) {}
@@ -218,7 +218,7 @@ const AdminDashboard = () => {
 
   const markNotificationRead = async (id) => {
     try { 
-      await axios.put(`http://localhost:5000/api/notifications/read/${id}`); 
+      await axios.put(`https://expert-relevance-determination.onrender.com/api/notifications/read/${id}`); 
       fetchNotifications(); 
     } catch(err) {}
   };
@@ -233,7 +233,7 @@ const AdminDashboard = () => {
     setSendState('');
     
     try {
-      await axios.post('http://localhost:5000/api/notifications', {
+      await axios.post('https://expert-relevance-determination.onrender.com/api/notifications', {
         recipient: broadcastTarget, 
         sender: `Admin: ${adminName}`, 
         message: broadcastMessage, 
@@ -265,7 +265,7 @@ const AdminDashboard = () => {
       try {
         const simulatedCandidateSkills = "Python, Machine Learning, Data Science, AI, React";
 
-        const res = await axios.post('http://localhost:5000/api/match', { 
+        const res = await axios.post('https://expert-relevance-determination.onrender.com/api/match', { 
           username: value, 
           skills: simulatedCandidateSkills 
         });
@@ -298,7 +298,7 @@ const AdminDashboard = () => {
     if (!searchedCandidate) return;
 
     try {
-      await axios.post('http://localhost:5000/api/notifications', {
+      await axios.post('https://expert-relevance-determination.onrender.com/api/notifications', {
         recipient: searchedCandidate, 
         sender: `Admin: ${adminName}`, 
         type: 'alert', 

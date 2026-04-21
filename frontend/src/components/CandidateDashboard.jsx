@@ -162,7 +162,7 @@ const CandidateDashboard = () => {
           ) {
             localStorage.setItem(`alerted_${s._id}`, 'true');
             
-            axios.post('http://localhost:5000/api/notifications', {
+            axios.post('https://expert-relevance-determination.onrender.com/api/notifications', {
               recipient: user.name, 
               sender: 'System Scheduler', 
               type: 'alert', 
@@ -211,7 +211,7 @@ const CandidateDashboard = () => {
   const fetchNotifications = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:5000/api/notifications/${encodeURIComponent(user.name)}`
+        `https://expert-relevance-determination.onrender.com/api/notifications/${encodeURIComponent(user.name)}`
       );
       setNotifications(res.data);
     } catch (err) {
@@ -221,7 +221,7 @@ const CandidateDashboard = () => {
 
   const markNotificationRead = async (id) => {
     try {
-      await axios.put(`http://localhost:5000/api/notifications/read/${id}`);
+      await axios.put(`https://expert-relevance-determination.onrender.com/api/notifications/read/${id}`);
       fetchNotifications(); 
     } catch (err) {
       console.error("Failed to mark read status.");
@@ -233,7 +233,7 @@ const CandidateDashboard = () => {
   const fetchMySchedules = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:5000/api/schedules/${encodeURIComponent(user.name)}`
+        `https://expert-relevance-determination.onrender.com/api/schedules/${encodeURIComponent(user.name)}`
       );
       setMySchedules(res.data);
     } catch (err) {
@@ -243,7 +243,7 @@ const CandidateDashboard = () => {
 
   const fetchBoards = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/boards');
+      const res = await axios.get('https://expert-relevance-determination.onrender.com/api/boards');
       setActiveBoards(res.data);
     } catch (error) {
       console.error("Failed to fetch active boards.");
@@ -260,14 +260,14 @@ const CandidateDashboard = () => {
     }
 
     try {
-      await axios.post('http://localhost:5000/api/schedules', {
+      await axios.post('https://expert-relevance-determination.onrender.com/api/schedules', {
         candidate: user.name, 
         expert: expertName, 
         dateTime: scheduleDate, 
         sender: user.name
       });
       
-      await axios.post('http://localhost:5000/api/notifications', {
+      await axios.post('https://expert-relevance-determination.onrender.com/api/notifications', {
         recipient: expertName, 
         sender: user.name, 
         type: 'info', 
@@ -291,7 +291,7 @@ const CandidateDashboard = () => {
   const fetchUserResumes = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:5000/api/resumes/${encodeURIComponent(user.name)}`
+        `https://expert-relevance-determination.onrender.com/api/resumes/${encodeURIComponent(user.name)}`
       );
       setResumes(res.data.map(r => ({
         id: r.gridfs_id, 
@@ -320,7 +320,7 @@ const CandidateDashboard = () => {
     setResumeUploadStatus('Encrypting & Uploading...');
     
     try {
-      const res = await axios.post('http://localhost:5000/api/upload_resume', formData, { 
+      const res = await axios.post('https://expert-relevance-determination.onrender.com/api/upload_resume', formData, { 
         headers: { 'Content-Type': 'multipart/form-data' } 
       });
       
@@ -340,7 +340,7 @@ const CandidateDashboard = () => {
   const handleDeleteResume = async (fileId) => {
     if (!window.confirm("Delete this resume permanently?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/resumes/delete/${fileId}`);
+      await axios.delete(`https://expert-relevance-determination.onrender.com/api/resumes/delete/${fileId}`);
       fetchUserResumes();
     } catch (err) {
       console.error(err);
@@ -350,7 +350,7 @@ const CandidateDashboard = () => {
   const fetchUserFiles = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:5000/api/vault/${encodeURIComponent(user.name)}`
+        `https://expert-relevance-determination.onrender.com/api/vault/${encodeURIComponent(user.name)}`
       );
       setFiles(res.data.map(f => ({
         id: f.gridfs_id, 
@@ -376,7 +376,7 @@ const CandidateDashboard = () => {
     setUploadStatus('Encrypting...');
     
     try {
-      const res = await axios.post('http://localhost:5000/api/upload', formData, { 
+      const res = await axios.post('https://expert-relevance-determination.onrender.com/api/upload', formData, { 
         headers: { 'Content-Type': 'multipart/form-data' } 
       });
       
@@ -397,13 +397,13 @@ const CandidateDashboard = () => {
     if (isLegacy) {
       return alert("Legacy files cannot be viewed.");
     }
-    window.open(`http://localhost:5000/api/vault/view/${fileId}`, '_blank');
+    window.open(`https://expert-relevance-determination.onrender.com/api/vault/view/${fileId}`, '_blank');
   };
 
   const handleDeleteFile = async (fileId) => {
     if (!window.confirm("Delete permanently?")) return;
     try { 
-      await axios.delete(`http://localhost:5000/api/vault/delete/${fileId}`); 
+      await axios.delete(`https://expert-relevance-determination.onrender.com/api/vault/delete/${fileId}`); 
       fetchUserFiles(); 
     } catch (err) {
       console.error(err);
@@ -418,7 +418,7 @@ const CandidateDashboard = () => {
     setAuditing(true); 
     setAiFeedback("");
     try {
-      const res = await axios.post('http://localhost:5000/api/audit', { 
+      const res = await axios.post('https://expert-relevance-determination.onrender.com/api/audit', { 
         skills: user.skills, 
         username: user.name 
       });
@@ -436,7 +436,7 @@ const CandidateDashboard = () => {
     setMatches([]);
     
     try {
-      const res = await axios.post('http://localhost:5000/api/match', { 
+      const res = await axios.post('https://expert-relevance-determination.onrender.com/api/match', { 
         username: user.name, 
         skills: user.skills 
       });

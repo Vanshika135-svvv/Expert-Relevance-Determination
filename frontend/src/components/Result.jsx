@@ -21,7 +21,7 @@ const Result = () => {
   useEffect(() => {
     const fetchResults = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/assessments/${candidateName}`);
+        const res = await axios.get(`https://expert-relevance-determination.onrender.com/api/assessments/${candidateName}`);
         
         if (res.data.status === 'Success') {
           const data = res.data.data;
