@@ -31,7 +31,8 @@ import {
   Trash2, 
   Bell, 
   Calendar,
-  Video
+  Video,
+  Users
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -41,6 +42,7 @@ const CandidateDashboard = () => {
   // ==========================================
   const navigate = useNavigate();
   const notifRef = useRef(null); 
+  const searchRef = useRef(null); 
   
   // ==========================================
   // 2. UI & NAVIGATION STATES
@@ -96,6 +98,13 @@ const CandidateDashboard = () => {
   const [mySchedules, setMySchedules] = useState([]);
 
   // ==========================================
+  // 9. NETWORK QUERY SEARCH STATES 
+  // ==========================================
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+
+  // ==========================================
   // INITIALIZATION: COMPONENT MOUNT
   // ==========================================
   useEffect(() => {
@@ -121,12 +130,15 @@ const CandidateDashboard = () => {
   }, []);
 
   // ==========================================
-  // CLICK-OUTSIDE LISTENER FOR NOTIFICATIONS
+  // CLICK-OUTSIDE LISTENER FOR WIDGETS
   // ==========================================
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (notifRef.current && !notifRef.current.contains(event.target)) {
         setIsNotifOpen(false);
+      }
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setIsSearchOpen(false);
       }
     };
     
@@ -135,7 +147,7 @@ const CandidateDashboard = () => {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [notifRef]);
+  }, [notifRef, searchRef]);
 
   // ==========================================
   // DATA FETCHING & POLLING LOOP
@@ -192,7 +204,7 @@ const CandidateDashboard = () => {
   }, [mySchedules, user.name]);
 
   // ==========================================
-  // CORE FUNCTIONS
+  // CORE FUNCTIONS & SEARCH HANDLER
   // ==========================================
 
   const handleLogout = () => {
@@ -202,6 +214,22 @@ const CandidateDashboard = () => {
 
   const handleJoinSync = (expertName) => {
     navigate('/interview', { state: { target: expertName } });
+  };
+
+  const handleNetworkQuery = (e) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    
+    if (value.length > 0) {
+      setIsSearchOpen(true);
+      setIsSearching(true);
+      
+      setTimeout(() => {
+        setIsSearching(false);
+      }, 800);
+    } else {
+      setIsSearchOpen(false);
+    }
   };
 
   const fetchNotifications = async () => {
@@ -474,7 +502,7 @@ const CandidateDashboard = () => {
       onClick={() => setActiveTab(id)} 
       className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all group ${
         activeTab === id 
-        ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' 
+        ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.15)]' 
         : 'text-slate-400 hover:bg-white/5 hover:text-white'
       }`}
     >
@@ -583,8 +611,8 @@ const CandidateDashboard = () => {
         
         {/* --- TOP HEADER BAR --- */}
         <header className="relative z-50 h-24 px-6 md:px-10 flex items-center justify-between border-b border-white/5 bg-white/[0.02] backdrop-blur-md shrink-0">
-          <div>
-            <h1 className="text-xl md:text-2xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400">
+          <div className="min-w-0 flex-1 pr-4">
+            <h1 className="text-lg md:text-xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 truncate">
               Identify: <span className="text-white">{user.name}</span>
             </h1>
             <p className="text-xs text-slate-400 font-mono mt-1 flex items-center gap-2">
@@ -596,19 +624,17 @@ const CandidateDashboard = () => {
             </p>
           </div>
           
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-4 shrink-0">
             
             {/* NOTIFICATION WIDGET W/ CLICK OUTSIDE */}
             <div className="relative" ref={notifRef}>
               <button 
                 onClick={() => setIsNotifOpen(!isNotifOpen)} 
-                className="relative p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all border border-white/10 group"
+                className="relative p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all border border-white/10"
               >
-                <Bell size={18} className="text-slate-300 group-hover:text-cyan-400 transition-colors" />
+                <Bell size={18} className="text-slate-300" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-[#020617] animate-pulse flex items-center justify-center text-[7px] font-bold text-white">
-                    {unreadCount}
-                  </span>
+                  <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-[#020617] animate-pulse"></span>
                 )}
               </button>
 
@@ -618,10 +644,10 @@ const CandidateDashboard = () => {
                     initial={{opacity:0, y:10, scale:0.95}} 
                     animate={{opacity:1,y:0, scale:1}} 
                     exit={{opacity:0,y:10, scale:0.95}} 
-                    className="absolute right-0 mt-4 w-80 bg-[#0B1021]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.6)] z-50 overflow-hidden"
+                    className="absolute right-0 mt-4 w-80 bg-[#0B1021]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] z-50 overflow-hidden"
                   >
-                    <div className="p-4 border-b border-white/10 bg-white/5 flex justify-between items-center">
-                      <h3 className="text-[10px] font-black uppercase tracking-widest text-white">
+                    <div className="p-4 border-b border-white/5 bg-white/5 flex justify-between items-center">
+                      <h3 className="text-xs font-black uppercase tracking-widest text-white">
                         System Alerts
                       </h3>
                       <span className="text-[9px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded uppercase font-bold">
@@ -631,22 +657,22 @@ const CandidateDashboard = () => {
                     
                     <div className="max-h-80 overflow-y-auto custom-scrollbar p-2 space-y-1">
                       {notifications.length === 0 ? (
-                        <div className="p-8 text-center text-slate-500 text-[10px] font-black uppercase tracking-widest">
-                          No signals detected.
+                        <div className="p-6 text-center text-slate-500 text-xs font-bold uppercase tracking-widest">
+                          No alerts detected.
                         </div>
                       ) : (
                         notifications.map(n => (
                           <div 
                             key={n._id} 
-                            className={`p-4 rounded-xl transition-all ${n.read ? 'bg-transparent opacity-50 hover:bg-white/5' : 'bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20'}`}
+                            className={`p-4 rounded-xl transition-all ${n.read ? 'bg-transparent opacity-60' : 'bg-blue-500/10 border border-blue-500/20'}`}
                           >
-                            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-1 flex justify-between">
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1 flex justify-between">
                               {n.sender} 
-                              <span className="text-slate-600 font-mono">
+                              <span className="text-slate-500">
                                 {new Date(n.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
                               </span>
                             </p>
-                            <p className="text-xs font-medium text-slate-200 leading-snug mb-3">
+                            <p className="text-sm font-medium text-slate-200 leading-snug mb-3">
                               {n.message}
                             </p>
                             
@@ -666,7 +692,7 @@ const CandidateDashboard = () => {
                               {!n.read && (
                                 <button 
                                   onClick={() => markNotificationRead(n._id)} 
-                                  className="text-[9px] font-black uppercase tracking-widest text-cyan-400 hover:text-cyan-300 transition-colors"
+                                  className="text-[9px] font-black uppercase tracking-widest text-blue-400 hover:text-blue-300 transition-colors"
                                 >
                                   Mark Read
                                 </button>
@@ -680,16 +706,75 @@ const CandidateDashboard = () => {
                 )}
               </AnimatePresence>
             </div>
-            
-            <div className="relative group hidden md:block">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+
+            {/* --- NEW: QUERY NETWORK SEARCH WIDGET --- */}
+            <div className="relative group hidden lg:block" ref={searchRef}>
+              <Search 
+                className={`absolute left-4 top-1/2 -translate-y-1/2 ${isSearchOpen ? 'text-blue-400' : 'text-slate-500'} transition-colors`} 
+                size={16} 
+              />
               <input 
                 type="text" 
                 placeholder="Query network..." 
-                className="bg-black/40 border border-white/10 rounded-full py-3 pl-12 pr-6 text-xs outline-none focus:border-cyan-500/50 w-64 transition-all focus:w-80 font-medium"
+                value={searchQuery}
+                onChange={handleNetworkQuery}
+                onFocus={() => searchQuery.length > 0 && setIsSearchOpen(true)}
+                className="bg-black/40 border border-white/10 rounded-full py-3 pl-12 pr-6 text-xs outline-none focus:border-blue-500/50 w-48 xl:w-64 transition-all focus:w-72 xl:focus:w-80 font-medium text-white focus:bg-black/80 focus:shadow-[0_0_20px_rgba(59,130,246,0.2)]"
               />
+              
+              <AnimatePresence>
+                {isSearchOpen && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }} 
+                    animate={{ opacity: 1, y: 0, scale: 1 }} 
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }} 
+                    className="absolute right-0 top-full mt-4 w-80 bg-[#0B1021]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.8)] z-50 overflow-hidden"
+                  >
+                    <div className="p-4 border-b border-white/10 bg-white/5 flex justify-between items-center">
+                      <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        Network Query
+                      </h3>
+                      {isSearching && (
+                        <div className="w-3 h-3 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                      )}
+                    </div>
+                    
+                    <div className="p-2 space-y-1 max-h-60 overflow-y-auto custom-scrollbar">
+                      {isSearching ? (
+                        <div className="p-6 text-center text-slate-500 text-[10px] font-black uppercase tracking-widest animate-pulse">
+                          Scanning deep nodes...
+                        </div>
+                      ) : (
+                        <>
+                          <button className="w-full text-left p-3 rounded-xl hover:bg-blue-500/10 transition-all flex items-center gap-3 group">
+                            <Database size={14} className="text-slate-500 group-hover:text-blue-400 transition-colors" />
+                            <div>
+                              <p className="text-xs font-bold text-white truncate w-56">Search Vault for "{searchQuery}"</p>
+                              <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5">Global Documents</p>
+                            </div>
+                          </button>
+                          <button className="w-full text-left p-3 rounded-xl hover:bg-blue-500/10 transition-all flex items-center gap-3 group">
+                            <Users size={14} className="text-slate-500 group-hover:text-blue-400 transition-colors" />
+                            <div>
+                              <p className="text-xs font-bold text-white truncate w-56">Lookup Node: {searchQuery}</p>
+                              <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5">Active Connections</p>
+                            </div>
+                          </button>
+                          <button className="w-full text-left p-3 rounded-xl hover:bg-blue-500/10 transition-all flex items-center gap-3 group">
+                            <Settings size={14} className="text-slate-500 group-hover:text-blue-400 transition-colors" />
+                            <div>
+                              <p className="text-xs font-bold text-white truncate w-56">System Parameters</p>
+                              <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5">Configuration</p>
+                            </div>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
-
+            
             <div className="flex items-center gap-4 bg-black/40 border border-white/10 rounded-full px-6 py-2">
               <div className="flex flex-col border-r border-white/10 pr-4">
                 <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest">
@@ -709,8 +794,8 @@ const CandidateDashboard = () => {
               </div>
             </div>
             
-            <div className="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center animate-pulse shrink-0">
-              <BrainCircuit className="text-cyan-400" size={18} />
+            <div className="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/30 flex items-center justify-center animate-pulse shrink-0">
+              <BrainCircuit className="text-blue-400" size={18} />
             </div>
           </div>
         </header>

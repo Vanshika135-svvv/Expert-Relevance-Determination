@@ -482,7 +482,65 @@ def get_candidate_assessment(candidate_name):
 
 
 # ==========================================
-# 9. RUN ENGINE
+# 9. ADMIN DASHBOARD ANALYTICS ROUTES
+# ==========================================
+
+@app.route('/api/admin/users', methods=['GET'])
+def get_all_users():
+    """Admin Route: Fetches all registered nodes (users) from the database."""
+    try:
+        users = list(users_col.find({}, {"password": 0})) # Security: Exclude passwords
+        formatted_users = []
+        for u in users:
+            formatted_users.append({
+                "id": str(u["_id"]),
+                "name": u.get("username", "Unknown Node"),
+                "role": u.get("role", "Candidate"),
+                "status": "Active", 
+                "lastLogin": u.get("createdAt", datetime.utcnow()).strftime("%b %d, %Y")
+            })
+        return jsonify(formatted_users)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/admin/vault_logs', methods=['GET'])
+def get_all_vault_logs():
+    """Admin Route: Fetches a combined ledger of all resumes and vault uploads."""
+    try:
+        resumes = list(resumes_col.find().sort("upload_date", -1).limit(25))
+        vault_files = list(vault_col.find().sort("upload_date", -1).limit(25))
+        
+        logs = []
+        for r in resumes:
+            logs.append({
+                "id": str(r["_id"]),
+                "user": r.get("username", "Unknown"),
+                "file": r.get("filename", "Unknown"),
+                "size": r.get("size", "N/A"),
+                "type": "RESUME",
+                "date": r.get("upload_date", datetime.utcnow()).strftime("%Y-%m-%d %H:%M")
+            })
+            
+        for v in vault_files:
+            logs.append({
+                "id": str(v["_id"]),
+                "user": v.get("username", "Unknown"),
+                "file": v.get("filename", "Unknown"),
+                "size": v.get("size", "N/A"),
+                "type": "VAULT",
+                "date": v.get("upload_date", datetime.utcnow()).strftime("%Y-%m-%d %H:%M")
+            })
+        
+        # Sort the combined list chronologically
+        logs.sort(key=lambda x: x["date"], reverse=True)
+        return jsonify(logs)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ==========================================
+# 10. RUN ENGINE
 # ==========================================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

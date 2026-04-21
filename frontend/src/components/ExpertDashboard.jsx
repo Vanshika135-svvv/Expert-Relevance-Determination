@@ -20,45 +20,70 @@ import {
   Eye, 
   ArrowRight,
   BrainCircuit,
-  Clock
+  Clock,
+  Database // Added for search results
 } from 'lucide-react';
 import axios from 'axios';
 
 const ExpertDashboard = () => {
+  // ==========================================
+  // 1. ROUTING & REFERENCES
+  // ==========================================
   const navigate = useNavigate();
   const location = useLocation(); 
   
-  // --- Refs ---
-  const notifRef = useRef(null); // Reference for click-outside logic
+  // Reference hooks for detecting clicks outside of UI widgets
+  const notifRef = useRef(null); 
+  const searchRef = useRef(null); 
   
-  // --- UI & Navigation States ---
+  // ==========================================
+  // 2. UI & NAVIGATION STATES
+  // ==========================================
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   
-  // --- Data States ---
+  // ==========================================
+  // 3. QUEUE & DATA STATES
+  // ==========================================
   const [queue, setQueue] = useState([]);
   const [loadingQueue, setLoadingQueue] = useState(true);
   
-  // --- Evaluation Form States ---
+  // ==========================================
+  // 4. EVALUATION FORM STATES
+  // ==========================================
   const [evaluation, setEvaluation] = useState({ 
     candidateName: '', 
     score: 5, 
     remarks: '' 
   });
-  const [submitStatus, setSubmitStatus] = useState({ message: '', type: '' });
+  const [submitStatus, setSubmitStatus] = useState({ 
+    message: '', 
+    type: '' 
+  });
   const [evalLoading, setEvalLoading] = useState(false);
 
-  // --- NOTIFICATION & SCHEDULING STATES ---
+  // ==========================================
+  // 5. NOTIFICATION & SCHEDULING STATES
+  // ==========================================
   const [notifications, setNotifications] = useState([]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [expertSchedules, setExpertSchedules] = useState([]);
 
+  // ==========================================
+  // 6. NETWORK QUERY SEARCH STATES
+  // ==========================================
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+
   // Fetch expert identity from local storage
   const expertName = localStorage.getItem('username') || 'Verified Expert';
 
-  // --- AUTOMATED ASSESSMENT PRE-FILL LOGIC ---
+  // ==========================================
+  // AUTOMATED ASSESSMENT PRE-FILL LOGIC
+  // ==========================================
   useEffect(() => {
-    // If returning from a completed interview room
+    // If returning from a completed interview room, auto-fill the assessment form
     if (location.state?.autoOpenAssessment) {
       setActiveTab('assessments'); 
       setEvaluation(prev => ({ 
@@ -71,27 +96,57 @@ const ExpertDashboard = () => {
     }
   }, [location.state, navigate, location.pathname]);
 
-  // --- CLICK OUTSIDE LOGIC FOR NOTIFICATIONS ---
+  // ==========================================
+  // CLICK OUTSIDE LOGIC FOR UI WIDGETS
+  // ==========================================
   useEffect(() => {
     const handleClickOutside = (event) => {
-      // Close notification dropdown if clicked outside the container
+      // Close notification dropdown if clicked outside
       if (notifRef.current && !notifRef.current.contains(event.target)) {
         setIsNotifOpen(false);
+      }
+      
+      // Close search dropdown if clicked outside
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setIsSearchOpen(false);
       }
     };
     
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [notifRef]);
+    
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [notifRef, searchRef]);
 
-  // --- INITIALIZATION & POLLING ---
+  // ==========================================
+  // INITIALIZATION & POLLING DATA
+  // ==========================================
   useEffect(() => {
     const fetchQueue = async () => {
       // Base Simulated Queue
       const baseQueue = [
-        { id: 1, name: 'Bhaskar Tiwari', domain: 'Machine Learning', matchScore: 94, status: 'Waiting' },
-        { id: 2, name: 'Alice Chen', domain: 'Data Engineering', matchScore: 88, status: 'Scheduled' },
-        { id: 3, name: 'Rahul Sharma', domain: 'Cloud Architecture', matchScore: 91, status: 'Reviewing' }
+        { 
+          id: 1, 
+          name: 'Bhaskar Tiwari', 
+          domain: 'Machine Learning', 
+          matchScore: 94, 
+          status: 'Waiting' 
+        },
+        { 
+          id: 2, 
+          name: 'Alice Chen', 
+          domain: 'Data Engineering', 
+          matchScore: 88, 
+          status: 'Scheduled' 
+        },
+        { 
+          id: 3, 
+          name: 'Rahul Sharma', 
+          domain: 'Cloud Architecture', 
+          matchScore: 91, 
+          status: 'Reviewing' 
+        }
       ];
 
       // Dynamically check each candidate for a resume in the GridFS database
@@ -101,9 +156,15 @@ const ExpertDashboard = () => {
             const res = await axios.get(
               `http://localhost:5000/api/expert/get_resume/${encodeURIComponent(candidate.name)}`
             );
-            return { ...candidate, resumeId: res.data.gridfs_id };
+            return { 
+              ...candidate, 
+              resumeId: res.data.gridfs_id 
+            };
           } catch { 
-            return { ...candidate, resumeId: null }; 
+            return { 
+              ...candidate, 
+              resumeId: null 
+            }; 
           }
         })
       );
@@ -126,7 +187,9 @@ const ExpertDashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // --- AUTOMATED 15-MINUTE REMINDER LOGIC ---
+  // ==========================================
+  // AUTOMATED 15-MINUTE REMINDER LOGIC
+  // ==========================================
   useEffect(() => {
     const reminderInterval = setInterval(() => {
       const now = new Date().getTime();
@@ -137,7 +200,11 @@ const ExpertDashboard = () => {
           const diff = new Date(s.dateTime).getTime() - now;
           
           // Trigger alert if exact time is between 14-15 minutes prior
-          if (diff <= 15 * 60 * 1000 && diff > 14 * 60 * 1000 && !localStorage.getItem(`alerted_${s._id}`)) {
+          if (
+            diff <= 15 * 60 * 1000 && 
+            diff > 14 * 60 * 1000 && 
+            !localStorage.getItem(`alerted_${s._id}`)
+          ) {
             localStorage.setItem(`alerted_${s._id}`, 'true');
             
             axios.post('http://localhost:5000/api/notifications', {
@@ -157,6 +224,10 @@ const ExpertDashboard = () => {
     return () => clearInterval(reminderInterval);
   }, [expertSchedules, expertName]);
 
+  // ==========================================
+  // CORE FUNCTIONS
+  // ==========================================
+
   const handleLogout = () => {
     localStorage.clear();
     navigate('/login');
@@ -166,10 +237,34 @@ const ExpertDashboard = () => {
     window.open(`http://localhost:5000/api/vault/view/${fileId}`, '_blank');
   };
 
-  // --- SCHEDULING LOGIC ---
+  // ==========================================
+  // SEARCH BAR LOGIC
+  // ==========================================
+  const handleNetworkQuery = (e) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    
+    if (value.length > 0) {
+      setIsSearchOpen(true);
+      setIsSearching(true);
+      
+      // Simulate network latency for finding results
+      setTimeout(() => {
+        setIsSearching(false);
+      }, 800);
+    } else {
+      setIsSearchOpen(false);
+    }
+  };
+
+  // ==========================================
+  // SCHEDULING LOGIC
+  // ==========================================
   const fetchExpertSchedules = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/schedules/${encodeURIComponent(expertName)}`);
+      const res = await axios.get(
+        `http://localhost:5000/api/schedules/${encodeURIComponent(expertName)}`
+      );
       setExpertSchedules(res.data);
     } catch (err) {
       console.error("Failed to fetch schedules");
@@ -206,7 +301,9 @@ const ExpertDashboard = () => {
     }
   };
 
-  // --- SYNC ACTIONS & NOTIFICATIONS ---
+  // ==========================================
+  // SYNC ACTIONS & NOTIFICATIONS
+  // ==========================================
   const handleJoinSync = async (candidateName) => {
     try {
       await axios.post('http://localhost:5000/api/notifications', {
@@ -225,7 +322,9 @@ const ExpertDashboard = () => {
 
   const fetchNotifications = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/notifications/${encodeURIComponent(expertName)}`);
+      const res = await axios.get(
+        `http://localhost:5000/api/notifications/${encodeURIComponent(expertName)}`
+      );
       setNotifications(res.data);
     } catch (err) {
       console.error("Failed to fetch system notifications");
@@ -241,11 +340,17 @@ const ExpertDashboard = () => {
     }
   };
 
-  // --- SUBMIT ASSESSMENT ---
+  // ==========================================
+  // EVALUATION & SCORING LOGIC
+  // ==========================================
   const submitScore = async (e) => {
     if (e) e.preventDefault();
+    
     if (!evaluation.candidateName) {
-      setSubmitStatus({ message: 'Candidate identity required.', type: 'error' });
+      setSubmitStatus({ 
+        message: 'Candidate identity required.', 
+        type: 'error' 
+      });
       return;
     }
     
@@ -261,8 +366,16 @@ const ExpertDashboard = () => {
       });
 
       if (res.data.status === "Success" || res.status === 200) {
-        setSubmitStatus({ message: 'Evaluation Encrypted & Saved to Database!', type: 'success' });
-        setEvaluation({ candidateName: '', score: 5, remarks: '' }); 
+        setSubmitStatus({ 
+          message: 'Evaluation Encrypted & Saved to Database!', 
+          type: 'success' 
+        });
+        setEvaluation({ 
+          candidateName: '', 
+          score: 5, 
+          remarks: '' 
+        }); 
+        
         setTimeout(() => setSubmitStatus({ message: '', type: '' }), 3000);
       }
     } catch (err) {
@@ -274,6 +387,9 @@ const ExpertDashboard = () => {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  // ==========================================
+  // SIDEBAR COMPONENT
+  // ==========================================
   const SidebarItem = ({ icon: Icon, label, id }) => (
     <button
       onClick={() => setActiveTab(id)}
@@ -283,7 +399,10 @@ const ExpertDashboard = () => {
           : 'text-slate-400 hover:bg-white/5 hover:text-white border border-transparent'
       }`}
     >
-      <Icon size={20} className={activeTab === id ? 'animate-pulse' : 'group-hover:scale-110 transition-transform'} />
+      <Icon 
+        size={20} 
+        className={activeTab === id ? 'animate-pulse' : 'group-hover:scale-110 transition-transform'} 
+      />
       <AnimatePresence>
         {isSidebarOpen && (
           <motion.span 
@@ -299,16 +418,19 @@ const ExpertDashboard = () => {
     </button>
   );
 
+  // ==========================================
+  // COMPONENT RENDER
+  // ==========================================
   return (
     <div className="min-h-screen bg-[#020617] text-white flex overflow-hidden selection:bg-cyan-500 selection:text-black font-sans">
       
-      {/* Background Glow */}
+      {/* --- BACKGROUND GLOW EFFECTS --- */}
       <div className="absolute inset-0 -z-10 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40vw] h-[40vw] bg-blue-600/10 blur-[120px] rounded-full mix-blend-screen" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[30vw] h-[30vw] bg-cyan-500/10 blur-[100px] rounded-full mix-blend-screen" />
       </div>
 
-      {/* --- SIDEBAR --- */}
+      {/* --- LEFT SIDEBAR --- */}
       <motion.aside 
         animate={{ width: isSidebarOpen ? 280 : 100 }}
         className="h-screen bg-black/40 backdrop-blur-2xl border-r border-white/10 flex flex-col p-6 relative z-20 shrink-0"
@@ -317,7 +439,10 @@ const ExpertDashboard = () => {
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           className="absolute -right-4 top-10 w-8 h-8 bg-cyan-500 text-black rounded-full flex items-center justify-center cursor-pointer hover:scale-110 transition-transform shadow-[0_0_15px_rgba(6,182,212,0.5)]"
         >
-          <ChevronLeft size={16} className={!isSidebarOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />
+          <ChevronLeft 
+            size={16} 
+            className={!isSidebarOpen ? 'rotate-180 transition-transform' : 'transition-transform'} 
+          />
         </button>
 
         <div className="flex items-center gap-3 mb-12">
@@ -328,9 +453,18 @@ const ExpertDashboard = () => {
           </div>
           <AnimatePresence>
             {isSidebarOpen && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="overflow-hidden whitespace-nowrap">
-                <h2 className="text-sm font-black tracking-widest uppercase">Nexus Command</h2>
-                <p className="text-[9px] text-cyan-500 font-bold tracking-[0.2em] uppercase">Expert Portal</p>
+              <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }} 
+                className="overflow-hidden whitespace-nowrap"
+              >
+                <h2 className="text-sm font-black tracking-widest uppercase">
+                  Nexus Command
+                </h2>
+                <p className="text-[9px] text-cyan-500 font-bold tracking-[0.2em] uppercase">
+                  Expert Portal
+                </p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -341,7 +475,6 @@ const ExpertDashboard = () => {
           <SidebarItem icon={Users} label="Live Queue" id="queue" />
           <SidebarItem icon={Calendar} label="Schedule" id="schedule" />
           <SidebarItem icon={ClipboardCheck} label="Assessments" id="assessments" />
-          <SidebarItem icon={Settings} label="System Config" id="settings" />
         </nav>
 
         <button 
@@ -351,7 +484,12 @@ const ExpertDashboard = () => {
           <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
           <AnimatePresence>
             {isSidebarOpen && (
-              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="font-bold text-xs uppercase tracking-widest whitespace-nowrap overflow-hidden">
+              <motion.span 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }} 
+                className="font-bold text-xs uppercase tracking-widest whitespace-nowrap overflow-hidden"
+              >
                 Terminate Session
               </motion.span>
             )}
@@ -362,18 +500,24 @@ const ExpertDashboard = () => {
       {/* --- MAIN CONTENT AREA --- */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
         
-        {/* Topbar: RELATIVE Z-50 Fix applied here */}
+        {/* --- TOP HEADER BAR --- */}
+        {/* FIX APPLIED HERE: Added min-w-0, flex-1, and truncate to stop massive text wrapping */}
         <header className="relative z-50 h-24 px-6 md:px-10 flex items-center justify-between border-b border-white/5 bg-white/[0.02] backdrop-blur-md shrink-0">
-          <div>
-            <h1 className="text-xl md:text-2xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-500">
+          <div className="min-w-0 flex-1 pr-4">
+            <h1 className="text-lg md:text-xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-500 truncate">
               Welcome, {expertName}
             </h1>
             <p className="text-xs text-slate-400 font-mono mt-1 flex items-center gap-2">
-              Status: <span className="text-emerald-400 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Online</span>
+              Status: 
+              <span className="text-emerald-400 flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> 
+                Online
+              </span>
             </p>
           </div>
           
-          <div className="flex items-center gap-6">
+          {/* FIX APPLIED HERE: Added shrink-0 to prevent right-side icons from squishing */}
+          <div className="flex items-center gap-6 shrink-0">
             
             {/* NOTIFICATION WIDGET W/ CLICK OUTSIDE */}
             <div className="relative" ref={notifRef}>
@@ -398,7 +542,9 @@ const ExpertDashboard = () => {
                     className="absolute right-0 mt-4 w-80 bg-[#0B1021]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.6)] z-50 overflow-hidden"
                   >
                     <div className="p-4 border-b border-white/10 bg-white/5 flex justify-between items-center">
-                      <h3 className="text-[10px] font-black uppercase tracking-widest text-white">Neural Matrix Alerts</h3>
+                      <h3 className="text-[10px] font-black uppercase tracking-widest text-white">
+                        Neural Matrix Alerts
+                      </h3>
                       <span className="text-[9px] bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded uppercase font-bold">
                         {unreadCount} New
                       </span>
@@ -456,13 +602,72 @@ const ExpertDashboard = () => {
               </AnimatePresence>
             </div>
 
-            <div className="relative group hidden md:block">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+            {/* --- NEW: QUERY NETWORK SEARCH WIDGET --- */}
+            <div className="relative group hidden lg:block" ref={searchRef}>
+              <Search 
+                className={`absolute left-4 top-1/2 -translate-y-1/2 ${isSearchOpen ? 'text-cyan-400' : 'text-slate-500'} transition-colors`} 
+                size={16} 
+              />
               <input 
                 type="text" 
                 placeholder="Query network..." 
-                className="bg-black/40 border border-white/10 rounded-full py-3 pl-12 pr-6 text-xs outline-none focus:border-cyan-500/50 w-64 transition-all focus:w-80 font-medium"
+                value={searchQuery}
+                onChange={handleNetworkQuery}
+                onFocus={() => searchQuery.length > 0 && setIsSearchOpen(true)}
+                className="bg-black/40 border border-white/10 rounded-full py-3 pl-12 pr-6 text-xs outline-none focus:border-cyan-500/50 w-48 xl:w-64 transition-all focus:w-72 xl:focus:w-80 font-medium text-white focus:bg-black/80 focus:shadow-[0_0_20px_rgba(6,182,212,0.2)]"
               />
+              
+              <AnimatePresence>
+                {isSearchOpen && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }} 
+                    animate={{ opacity: 1, y: 0, scale: 1 }} 
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }} 
+                    className="absolute right-0 top-full mt-4 w-80 bg-[#0B1021]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.8)] z-50 overflow-hidden"
+                  >
+                    <div className="p-4 border-b border-white/10 bg-white/5 flex justify-between items-center">
+                      <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        Network Query
+                      </h3>
+                      {isSearching && (
+                        <div className="w-3 h-3 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
+                      )}
+                    </div>
+                    
+                    <div className="p-2 space-y-1 max-h-60 overflow-y-auto custom-scrollbar">
+                      {isSearching ? (
+                        <div className="p-6 text-center text-slate-500 text-[10px] font-black uppercase tracking-widest animate-pulse">
+                          Scanning deep nodes...
+                        </div>
+                      ) : (
+                        <>
+                          <button className="w-full text-left p-3 rounded-xl hover:bg-cyan-500/10 transition-all flex items-center gap-3 group">
+                            <Database size={14} className="text-slate-500 group-hover:text-cyan-400 transition-colors" />
+                            <div>
+                              <p className="text-xs font-bold text-white truncate w-56">Search Vault for "{searchQuery}"</p>
+                              <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5">Global Documents</p>
+                            </div>
+                          </button>
+                          <button className="w-full text-left p-3 rounded-xl hover:bg-cyan-500/10 transition-all flex items-center gap-3 group">
+                            <Users size={14} className="text-slate-500 group-hover:text-cyan-400 transition-colors" />
+                            <div>
+                              <p className="text-xs font-bold text-white truncate w-56">Lookup Node: {searchQuery}</p>
+                              <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5">Active Connections</p>
+                            </div>
+                          </button>
+                          <button className="w-full text-left p-3 rounded-xl hover:bg-cyan-500/10 transition-all flex items-center gap-3 group">
+                            <Settings size={14} className="text-slate-500 group-hover:text-cyan-400 transition-colors" />
+                            <div>
+                              <p className="text-xs font-bold text-white truncate w-56">System Parameters</p>
+                              <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5">Configuration</p>
+                            </div>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
             
             <div className="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center animate-pulse shrink-0">
@@ -471,48 +676,42 @@ const ExpertDashboard = () => {
           </div>
         </header>
 
-        {/* Scrollable Content */}
+        {/* --- SCROLLABLE CONTENT --- */}
         <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar">
           <AnimatePresence mode="wait">
-            
+             
             {/* OVERVIEW TAB */}
             {activeTab === 'overview' && (
               <motion.div 
                 key="overview" 
                 initial={{ opacity: 0, y: 20 }} 
                 animate={{ opacity: 1, y: 0 }} 
-                exit={{ opacity: 0, y: -20 }} 
                 className="space-y-8 max-w-6xl mx-auto"
               >
-                {/* Stats Row */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {[
-                    { label: "Pending Reviews", value: "14", color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
-                    { label: "Average Match", value: "92%", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
-                    { label: "Hours Synced", value: "128", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/20" }
-                  ].map((stat, i) => (
+                    { label: "Pending Reviews", val: "14", col: "text-blue-400" }, 
+                    { label: "Average Match", val: "92%", col: "text-emerald-400" }, 
+                    { label: "Hours Synced", val: "128", col: "text-purple-400" }
+                  ].map((s, i) => (
                     <div 
                       key={i} 
-                      className={`p-6 rounded-[2.5rem] border ${stat.border} ${stat.bg} backdrop-blur-md relative overflow-hidden group hover:-translate-y-1 transition-transform`}
+                      className="p-6 rounded-[2.5rem] border border-white/10 bg-white/5 relative overflow-hidden group hover:-translate-y-1 transition-transform"
                     >
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">
-                        {stat.label}
+                        {s.label}
                       </p>
-                      <h3 className={`text-5xl font-black ${stat.color}`}>
-                        {stat.value}
+                      <h3 className={`text-5xl font-black ${s.col}`}>
+                        {s.val}
                       </h3>
-                      <div className="absolute -right-6 -bottom-6 opacity-10 group-hover:scale-110 transition-transform">
-                        <Activity size={100} />
-                      </div>
                     </div>
                   ))}
                 </div>
 
-                {/* Priority Action Box */}
-                <div className="bg-gradient-to-r from-cyan-900/40 to-blue-900/40 border border-cyan-500/30 p-8 rounded-[2.5rem] flex flex-col md:flex-row items-start md:items-center justify-between backdrop-blur-xl gap-6 shadow-2xl">
+                <div className="bg-gradient-to-r from-cyan-900/40 to-blue-900/40 border border-cyan-500/30 p-8 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between shadow-2xl gap-6">
                   <div>
                     <div className="inline-flex items-center gap-2 px-3 py-1 bg-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-widest rounded-full mb-4">
-                      <Clock size={12} /> Priority Queue
+                      <Clock size={12} /> Priority Node
                     </div>
                     <h2 className="text-2xl md:text-3xl font-black uppercase tracking-widest mb-2">
                       Bhaskar Tiwari is waiting
@@ -523,7 +722,7 @@ const ExpertDashboard = () => {
                   </div>
                   <button 
                     onClick={() => handleJoinSync("Bhaskar Tiwari")} 
-                    className="w-full md:w-auto px-8 py-5 bg-cyan-500 hover:bg-cyan-400 text-black font-black uppercase tracking-widest text-sm rounded-2xl flex items-center justify-center gap-3 transition-all shadow-[0_0_30px_rgba(6,182,212,0.4)] active:scale-95 shrink-0"
+                    className="w-full md:w-auto px-8 py-5 bg-cyan-500 hover:bg-cyan-400 text-black font-black uppercase tracking-widest text-sm rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-[0_0_30px_rgba(6,182,212,0.4)] shrink-0"
                   >
                     <Video size={18} /> Initialize Sync
                   </button>
@@ -531,86 +730,79 @@ const ExpertDashboard = () => {
               </motion.div>
             )}
 
-            {/* QUEUE TAB */}
+            {/* LIVE QUEUE TAB */}
             {activeTab === 'queue' && (
               <motion.div 
                 key="queue" 
                 initial={{ opacity: 0, x: 20 }} 
                 animate={{ opacity: 1, x: 0 }} 
-                exit={{ opacity: 0, x: -20 }} 
                 className="max-w-6xl mx-auto space-y-4"
               >
                 <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
                   <h2 className="text-xl font-black uppercase tracking-widest text-cyan-400">
-                    Live Assessment Queue
+                    Assessment Stream
                   </h2>
                   <span className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest w-fit">
                     {queue.length} Nodes Active
                   </span>
                 </div>
-
+                
                 {loadingQueue ? (
-                   <div className="flex justify-center py-20">
-                     <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
-                   </div>
+                  <div className="flex justify-center py-20">
+                    <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
+                  </div>
                 ) : (
-                  <div className="space-y-4">
-                    {queue.map((candidate) => (
-                      <div 
-                        key={candidate.id} 
-                        className="bg-black/40 border border-white/10 p-6 rounded-[2.5rem] flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-white/[0.02] transition-colors group"
-                      >
-                        <div className="flex items-center gap-6">
-                          <div className="w-14 h-14 shrink-0 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/5 flex items-center justify-center shadow-inner">
-                            <span className="font-black text-xl text-slate-500 group-hover:text-cyan-400 transition-colors">
-                              {candidate.name.charAt(0)}
-                            </span>
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-black tracking-wider uppercase text-white">
-                              {candidate.name}
-                            </h3>
-                            <p className="text-xs text-slate-400 uppercase tracking-widest font-bold mt-1">
-                              Domain: <span className="text-cyan-400">{candidate.domain}</span>
-                            </p>
-                          </div>
+                  queue.map((candidate) => (
+                    <div 
+                      key={candidate.id} 
+                      className="bg-black/40 border border-white/10 p-6 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-6 hover:bg-white/[0.02] transition-colors group"
+                    >
+                      <div className="flex items-center gap-6">
+                        <div className="w-14 h-14 rounded-2xl bg-slate-800 flex items-center justify-center font-black text-xl text-slate-500 group-hover:text-cyan-400 transition-colors">
+                          {candidate.name.charAt(0)}
                         </div>
-
-                        <div className="flex flex-wrap items-center justify-center md:justify-end gap-6 w-full md:w-auto">
-                          
-                          {/* RESUME VIEWER FOR EXPERT */}
-                          {candidate.resumeId ? (
-                            <button 
-                              onClick={() => handleViewResume(candidate.resumeId)} 
-                              className="px-4 py-2.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-black border border-emerald-500/30 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
-                            >
-                              <FileText size={14} /> View Resume
-                            </button>
-                          ) : (
-                            <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest italic px-2">
-                              No Resume Node
-                            </span>
-                          )}
-
-                          <div className="text-center min-w-[80px]">
-                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                              Match
-                            </p>
-                            <span className="text-xl font-black text-emerald-400">
-                              {candidate.matchScore}%
-                            </span>
-                          </div>
-                          
-                          <button 
-                            onClick={() => handleJoinSync(candidate.name)} 
-                            className="px-6 py-3 bg-cyan-500/10 hover:bg-cyan-500 text-cyan-400 hover:text-black border border-cyan-500/30 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap shadow-lg"
-                          >
-                            <Video size={14} /> Join Now
-                          </button>
+                        <div>
+                          <h3 className="text-lg font-black tracking-wider uppercase text-white">
+                            {candidate.name}
+                          </h3>
+                          <p className="text-xs text-slate-400 uppercase tracking-widest font-bold mt-1">
+                            Expert Domain: {candidate.domain}
+                          </p>
                         </div>
                       </div>
-                    ))}
-                  </div>
+
+                      <div className="flex flex-wrap items-center justify-center md:justify-end gap-4 w-full md:w-auto">
+                        
+                        {/* RESUME VIEWER FOR EXPERT */}
+                        {candidate.resumeId ? (
+                          <button 
+                            onClick={() => handleViewResume(candidate.resumeId)} 
+                            className="px-4 py-2.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-black border border-emerald-500/30 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
+                          >
+                            <FileText size={14} /> View Resume
+                          </button>
+                        ) : (
+                          <span className="text-[9px] text-slate-600 font-bold uppercase italic px-2 tracking-widest">
+                            No Resume Node
+                          </span>
+                        )}
+                        <div className="text-center min-w-[80px]">
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                            Match
+                          </p>
+                          <span className="text-xl font-black text-emerald-400">
+                            {candidate.matchScore}%
+                          </span>
+                        </div>
+                        <button 
+                          onClick={() => handleJoinSync(candidate.name)} 
+                          className="px-6 py-3 bg-cyan-500/10 hover:bg-cyan-500 text-cyan-400 hover:text-black border border-cyan-500/30 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap shadow-lg"
+                        >
+                          <Video size={14} /> Join Now
+                        </button>
+                      </div>
+                    </div>
+                  ))
                 )}
               </motion.div>
             )}
