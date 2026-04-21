@@ -2,37 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  FolderOpen, 
-  Cpu, 
-  Activity, 
-  Settings, 
-  LogOut, 
-  ChevronLeft, 
-  ChevronRight, 
-  Search, 
-  ShieldCheck, 
-  UploadCloud, 
-  FileText,
-  Zap, 
-  BrainCircuit, 
-  CheckCircle2, 
-  Sparkles,
-  BarChart3, 
-  User, 
-  Target, 
-  Mic2, 
-  Star, 
-  Clock, 
-  Network, 
-  ArrowRight, 
-  Play, 
-  Database,
-  Eye, 
-  Trash2, 
-  Bell, 
-  Calendar,
-  Video,
-  Users
+  FolderOpen, Cpu, Activity, Settings, LogOut, ChevronLeft, ChevronRight, 
+  Search, ShieldCheck, UploadCloud, FileText, Zap, BrainCircuit, CheckCircle2, 
+  Sparkles, BarChart3, User, Target, Mic2, Star, Clock, Network, ArrowRight, 
+  Play, Database, Eye, Trash2, Bell, Calendar, Video, Users
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -92,10 +65,11 @@ const CandidateDashboard = () => {
   const [ping, setPing] = useState(14);
 
   // ==========================================
-  // 8. SCHEDULING STATES
+  // 8. SCHEDULING & BOARD STATES
   // ==========================================
   const [scheduleDate, setScheduleDate] = useState('');
   const [mySchedules, setMySchedules] = useState([]);
+  const [activeBoards, setActiveBoards] = useState([]); 
 
   // ==========================================
   // 9. NETWORK QUERY SEARCH STATES 
@@ -158,10 +132,12 @@ const CandidateDashboard = () => {
       fetchUserResumes();
       fetchNotifications();
       fetchMySchedules();
+      fetchBoards(); 
       
       const notifInterval = setInterval(() => {
         fetchNotifications();
         fetchMySchedules(); 
+        fetchBoards(); 
       }, 10000);
       
       return () => clearInterval(notifInterval);
@@ -212,8 +188,8 @@ const CandidateDashboard = () => {
     navigate('/login');
   };
 
-  const handleJoinSync = (expertName) => {
-    navigate('/interview', { state: { target: expertName } });
+  const handleJoinSync = (targetName) => {
+    navigate('/interview', { state: { target: targetName } });
   };
 
   const handleNetworkQuery = (e) => {
@@ -262,6 +238,15 @@ const CandidateDashboard = () => {
       setMySchedules(res.data);
     } catch (err) {
       console.error("Failed to fetch schedules.");
+    }
+  };
+
+  const fetchBoards = async () => {
+    try {
+      const res = await axios.get('http://localhost:5000/api/boards');
+      setActiveBoards(res.data);
+    } catch (error) {
+      console.error("Failed to fetch active boards.");
     }
   };
 
@@ -611,6 +596,7 @@ const CandidateDashboard = () => {
         
         {/* --- TOP HEADER BAR --- */}
         <header className="relative z-50 h-24 px-6 md:px-10 flex items-center justify-between border-b border-white/5 bg-white/[0.02] backdrop-blur-md shrink-0">
+          
           <div className="min-w-0 flex-1 pr-4">
             <h1 className="text-lg md:text-xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 truncate">
               Identify: <span className="text-white">{user.name}</span>
@@ -677,7 +663,6 @@ const CandidateDashboard = () => {
                             </p>
                             
                             <div className="flex gap-2">
-                              {/* QUICK LINK BUTTON */}
                               <button 
                                 onClick={() => { 
                                   setActiveTab(n.actionTab || 'overview'); 
@@ -688,7 +673,6 @@ const CandidateDashboard = () => {
                                 View Details <ArrowRight size={10}/>
                               </button>
                               
-                              {/* MARK READ BUTTON */}
                               {!n.read && (
                                 <button 
                                   onClick={() => markNotificationRead(n._id)} 
@@ -707,7 +691,7 @@ const CandidateDashboard = () => {
               </AnimatePresence>
             </div>
 
-            {/* --- NEW: QUERY NETWORK SEARCH WIDGET --- */}
+            {/* --- QUERY NETWORK SEARCH WIDGET --- */}
             <div className="relative group hidden lg:block" ref={searchRef}>
               <Search 
                 className={`absolute left-4 top-1/2 -translate-y-1/2 ${isSearchOpen ? 'text-blue-400' : 'text-slate-500'} transition-colors`} 
@@ -758,13 +742,6 @@ const CandidateDashboard = () => {
                             <div>
                               <p className="text-xs font-bold text-white truncate w-56">Lookup Node: {searchQuery}</p>
                               <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5">Active Connections</p>
-                            </div>
-                          </button>
-                          <button className="w-full text-left p-3 rounded-xl hover:bg-blue-500/10 transition-all flex items-center gap-3 group">
-                            <Settings size={14} className="text-slate-500 group-hover:text-blue-400 transition-colors" />
-                            <div>
-                              <p className="text-xs font-bold text-white truncate w-56">System Parameters</p>
-                              <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5">Configuration</p>
                             </div>
                           </button>
                         </>
@@ -836,12 +813,12 @@ const CandidateDashboard = () => {
 
                   {/* Profile Identity Card */}
                   <div className="bg-gradient-to-br from-white/5 to-transparent border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-md">
-                    <div className="flex items-center gap-6 mb-8">
+                    <div className="flex items-center gap-6 mb-8 min-w-0">
                       <div className="w-20 h-20 bg-blue-500/20 rounded-3xl flex items-center justify-center border border-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.2)] shrink-0">
                         <User className="text-blue-400" size={36} />
                       </div>
-                      <div>
-                        <h3 className="text-2xl font-black uppercase tracking-widest text-white mb-2">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-2xl font-black uppercase tracking-widest text-white mb-2 truncate">
                           {user.name}
                         </h3>
                         <div className="flex flex-wrap gap-2">
@@ -879,11 +856,11 @@ const CandidateDashboard = () => {
                         <div className="mb-6 space-y-3">
                           {/* 1. MOST RECENT RESUME (Highlighted) */}
                           <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 flex items-center justify-between shadow-[0_0_15px_rgba(16,185,129,0.1)]">
-                            <div className="flex items-center gap-3 overflow-hidden pr-2">
+                            <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
                               <div className="p-2 bg-emerald-500/20 rounded-lg shrink-0">
                                 <FileText className="text-emerald-400" size={20} />
                               </div>
-                              <div className="truncate">
+                              <div className="min-w-0 flex-1">
                                 <p className="text-sm font-bold text-emerald-400 truncate">
                                   {resumes[0].name}
                                 </p>
@@ -918,7 +895,7 @@ const CandidateDashboard = () => {
                               </p>
                               {resumes.slice(1).map(r => (
                                 <div key={r.id} className="flex items-center justify-between bg-black/20 p-2.5 rounded-xl border border-white/5 group">
-                                  <div className="flex items-center gap-2 overflow-hidden pr-2">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1 pr-2">
                                     <FileText size={12} className="text-slate-500 shrink-0"/>
                                     <p className="text-xs text-slate-400 truncate">
                                       {r.name}
@@ -975,6 +952,61 @@ const CandidateDashboard = () => {
                         )}
                       </form>
                     </div>
+                  </div>
+
+                  {/* --- ACTIVE INTERVIEW BOARDS --- */}
+                  <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-md">
+                    <h2 className="text-xl font-black uppercase tracking-widest text-blue-400 mb-6">
+                      Live Interview Boards
+                    </h2>
+                    
+                    {activeBoards.length === 0 ? (
+                      <div className="text-center p-10 border border-dashed border-white/10 rounded-2xl text-slate-500 font-bold uppercase text-xs tracking-widest">
+                        No active boards found.
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {activeBoards.map(board => {
+                          const isEligible = user.skills.toLowerCase().includes(board.boardSubject.toLowerCase());
+                          
+                          return (
+                            <div 
+                              key={board._id} 
+                              className="bg-black/40 border border-white/5 p-6 rounded-[2rem] flex flex-col md:flex-row justify-between md:items-center gap-6 hover:border-blue-500/30 transition-colors group"
+                            >
+                              <div className="flex items-center gap-6 min-w-0 flex-1">
+                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/5 flex items-center justify-center shadow-inner shrink-0">
+                                  <Video className="text-blue-400" size={24} />
+                                </div>
+                                <div className="min-w-0 flex-1 pr-4">
+                                  <h3 className="text-lg font-black tracking-wider uppercase text-white truncate">
+                                    {board.boardSubject}
+                                  </h3>
+                                  <p className="text-xs text-slate-400 uppercase tracking-widest font-bold mt-1 truncate">
+                                    Scheduled: <span className="text-blue-400">{board.boardDate}</span>
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-3 w-full md:w-auto justify-end shrink-0">
+                                {isEligible ? (
+                                  <button 
+                                    onClick={() => handleJoinSync("Interview Board")} 
+                                    className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase text-[10px] tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(37,99,235,0.4)] flex items-center gap-2 whitespace-nowrap active:scale-95"
+                                  >
+                                    <Video size={14}/> Join Board
+                                  </button>
+                                ) : (
+                                  <span className="px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border border-slate-500/30 bg-slate-800/50 text-slate-400 whitespace-nowrap">
+                                    Not Eligible
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1090,12 +1122,12 @@ const CandidateDashboard = () => {
                             key={s._id} 
                             className="bg-black/20 border border-white/5 p-5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:bg-white/[0.02] transition-colors"
                           >
-                            <div className="flex items-center gap-4">
-                              <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400">
+                            <div className="flex items-center gap-4 min-w-0 flex-1">
+                              <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400 shrink-0">
                                 <Calendar size={16} />
                               </div>
-                              <div>
-                                <p className="text-sm font-bold text-white">
+                              <div className="min-w-0 flex-1 pr-4">
+                                <p className="text-sm font-bold text-white truncate">
                                   {s.expert}
                                 </p>
                                 <p className="text-[10px] font-mono text-blue-400 mt-1">
@@ -1104,7 +1136,7 @@ const CandidateDashboard = () => {
                               </div>
                             </div>
                             
-                            <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+                            <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end shrink-0">
                               
                               {/* ALWAYS VISIBLE JOIN BUTTON (Disabled or Enabled) */}
                               {s.status === 'Confirmed' ? (
@@ -1214,11 +1246,11 @@ const CandidateDashboard = () => {
                           </h2>
                         </div>
                         
-                        <div className="flex-1 text-center md:text-left">
-                          <h2 className="text-3xl md:text-4xl font-black uppercase tracking-widest text-white mb-1">
+                        <div className="flex-1 text-center md:text-left min-w-0">
+                          <h2 className="text-3xl md:text-4xl font-black uppercase tracking-widest text-white mb-1 truncate">
                             {matches[0].expert_name}
                           </h2>
-                          <p className="text-sm text-cyan-400 font-bold uppercase tracking-widest mb-6">
+                          <p className="text-sm text-cyan-400 font-bold uppercase tracking-widest mb-6 truncate">
                             {matches[0].domain} Expert
                           </p>
                           
@@ -1264,26 +1296,26 @@ const CandidateDashboard = () => {
                         {matches.slice(1, 3).map((match, i) => (
                           <div 
                             key={match.id} 
-                            className="bg-white/5 border border-white/10 p-6 rounded-[2rem] backdrop-blur-md flex flex-col hover:bg-white/10 transition-colors"
+                            className="bg-white/5 border border-white/10 p-6 rounded-[2rem] backdrop-blur-md flex flex-col hover:bg-white/10 transition-colors min-w-0"
                           >
                             <div className="flex items-center justify-between mb-6">
-                              <span className="px-3 py-1 bg-blue-500/10 text-blue-400 text-[9px] font-black uppercase tracking-widest rounded-full border border-blue-500/20 flex items-center gap-1">
+                              <span className="px-3 py-1 bg-blue-500/10 text-blue-400 text-[9px] font-black uppercase tracking-widest rounded-full border border-blue-500/20 flex items-center gap-1 shrink-0">
                                 <Zap size={10} /> Highly Relevant
                               </span>
-                              <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">
+                              <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest shrink-0">
                                 Match #{i + 2}
                               </span>
                             </div>
                             
-                            <div className="flex items-center gap-5 mb-6">
+                            <div className="flex items-center gap-5 mb-6 min-w-0 flex-1">
                               <div className="w-16 h-16 rounded-full border-4 border-blue-500/20 border-t-blue-400 flex items-center justify-center bg-black/40 shrink-0">
                                 <span className="text-xl font-black text-blue-400">{match.expert_name.charAt(0)}</span>
                               </div>
-                              <div>
+                              <div className="min-w-0 flex-1 pr-4">
                                 <h3 className="text-lg font-black uppercase tracking-wider text-white truncate">
                                   {match.expert_name}
                                 </h3>
-                                <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-1">
+                                <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-1 truncate">
                                   {match.domain}
                                 </p>
                               </div>
@@ -1296,7 +1328,7 @@ const CandidateDashboard = () => {
                               </div>
                               <button 
                                 onClick={() => handleJoinSync(match.expert_name)} 
-                                className="px-4 py-2.5 bg-blue-500/10 hover:bg-blue-500 text-blue-400 hover:text-white border border-blue-500/30 rounded-lg font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2"
+                                className="px-4 py-2.5 bg-blue-500/10 hover:bg-blue-500 text-blue-400 hover:text-white border border-blue-500/30 rounded-lg font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2 shrink-0"
                               >
                                 Connect <ChevronRight size={12} />
                               </button>

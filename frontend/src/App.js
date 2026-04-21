@@ -12,54 +12,95 @@ import Interview from './components/Interview';
 import Result from './components/Result';
 
 /**
+ * ==========================================
  * PROTECTED ROUTE HELPER
+ * ==========================================
  * Prevents logged-OUT users from seeing dashboards.
- * Redirects to /login if no session is found.
+ * Redirects to the Home Page ("/") if no session is found or if they have the wrong role.
  */
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const userRole = localStorage.getItem('role');
   
+  // Check 1: If there is no role saved, the user is not logged in.
+  // We instantly bounce them back to the Home Page.
   if (!userRole) {
-    return <Navigate replace to="/login" />;
+    return <Navigate replace to="/" />;
   }
   
+  // Check 2: If they are logged in, but their role isn't allowed on this specific page 
+  // (e.g. an Expert trying to access the Candidate Dashboard), bounce them back to Home.
   if (allowedRoles && !allowedRoles.includes(userRole)) {
-    return <Navigate replace to="/login" />;
+    return <Navigate replace to="/" />;
   }
   
+  // If they pass both security checks, render the requested page!
   return children;
 };
 
 /**
+ * ==========================================
  * PUBLIC ROUTE SHIELD
- * Prevents logged-IN users from seeing Login/Signup/Home.
- * It automatically teleports them to their correct workspace.
+ * ==========================================
+ * Prevents logged-IN users from seeing the Home, Login, or Signup pages.
+ * It automatically teleports them directly to their correct workspace dashboard.
  */
 const PublicRoute = ({ children }) => {
   const userRole = localStorage.getItem('role');
   
-  if (userRole === 'Candidate') return <Navigate replace to="/candidate" />;
-  if (userRole === 'Expert') return <Navigate replace to="/expert" />;
-  if (userRole === 'Admin') return <Navigate replace to="/admin" />;
+  if (userRole === 'Candidate') {
+    return <Navigate replace to="/candidate" />;
+  }
+  if (userRole === 'Expert') {
+    return <Navigate replace to="/expert" />;
+  }
+  if (userRole === 'Admin') {
+    return <Navigate replace to="/admin" />;
+  }
   
-  // If not logged in, let them see the public page (Home/Login/Signup)
+  // If they are not logged in, allow them to see the public page.
   return children;
 };
 
 function App() {
   return (
-    // Global Aegis AI theme applied to the outermost div
-    <div className="bg-navy-950 min-h-screen text-slate-200 font-sans overflow-x-hidden">
+    // Global dark theme applied to the outermost container to prevent any white flashing during navigation
+    <div className="bg-[#020617] min-h-screen text-slate-200 font-sans overflow-x-hidden">
       <Router>
         <Routes>
           
-          {/* === PUBLIC ROUTES (Shielded) === */}
-          {/* If a user is already logged in, they will skip these pages entirely */}
-          <Route path="/" element={<PublicRoute><HomePage /></PublicRoute>} />
-          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-          <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
+          {/* ========================================== */}
+          {/* PUBLIC ROUTES (Shielded)                   */}
+          {/* ========================================== */}
+          <Route 
+            path="/" 
+            element={
+              <PublicRoute>
+                <HomePage />
+              </PublicRoute>
+            } 
+          />
+          
+          <Route 
+            path="/login" 
+            element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            } 
+          />
+          
+          <Route 
+            path="/signup" 
+            element={
+              <PublicRoute>
+                <Signup />
+              </PublicRoute>
+            } 
+          />
 
-          {/* === ROLE-BASED DASHBOARDS (Protected) === */}
+          {/* ========================================== */}
+          {/* ROLE-BASED DASHBOARDS (Protected)          */}
+          {/* ========================================== */}
           <Route 
             path="/candidate" 
             element={
@@ -87,7 +128,9 @@ function App() {
             } 
           />
 
-          {/* === SHARED WORKFLOW ROUTES === */}
+          {/* ========================================== */}
+          {/* SHARED WORKFLOW ROUTES (Protected)         */}
+          {/* ========================================== */}
           <Route 
             path="/interview" 
             element={
@@ -106,9 +149,14 @@ function App() {
             } 
           />
 
-          {/* === FALLBACK === */}
-          {/* If a user enters a wrong URL, redirect them back to the start */}
-          <Route path="*" element={<Navigate to="/" />} />
+          {/* ========================================== */}
+          {/* FALLBACK ROUTE                             */}
+          {/* ========================================== */}
+          {/* If a user enters a completely random/wrong URL, safely redirect them to Home */}
+          <Route 
+            path="*" 
+            element={<Navigate to="/" />} 
+          />
           
         </Routes>
       </Router>

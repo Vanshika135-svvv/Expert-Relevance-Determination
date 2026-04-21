@@ -26,7 +26,8 @@ import {
   ShieldAlert,  
   UserCog,      
   Lock,
-  FileText
+  FileText,
+  Video
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -62,6 +63,7 @@ const AdminDashboard = () => {
   // 5. SYSTEM & BOARD STATES
   // ==========================================
   const [board, setBoard] = useState({ subject: '', date: '' });
+  const [activeBoards, setActiveBoards] = useState([]);
   const [loadingBoard, setLoadingBoard] = useState(false);
   const [stats, setStats] = useState({ 
     status: 'Scanning...', 
@@ -110,12 +112,14 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchDiagnostics(); 
     fetchNotifications();
-    fetchAdminData(); // Initial data load
+    fetchAdminData(); 
+    fetchBoards();
     
     const interval = setInterval(() => { 
       fetchDiagnostics(); 
       fetchNotifications(); 
-      fetchAdminData(); // Keep lists updated
+      fetchAdminData(); 
+      fetchBoards();
     }, 15000); 
     
     return () => clearInterval(interval);
@@ -131,11 +135,9 @@ const AdminDashboard = () => {
   // ==========================================
   const fetchAdminData = async () => {
     try {
-      // Fetch Users
       const userRes = await axios.get('http://localhost:5000/api/admin/users');
       setUserList(userRes.data);
       
-      // Fetch Vault Logs
       const vaultRes = await axios.get('http://localhost:5000/api/admin/vault_logs');
       setVaultLogs(vaultRes.data);
     } catch (err) {
@@ -143,9 +145,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // ==========================================
-  // DIAGNOSTICS LOGIC
-  // ==========================================
   const fetchDiagnostics = async () => {
     try {
       const response = await axios.get('http://localhost:5000/api/health_check');
@@ -157,6 +156,15 @@ const AdminDashboard = () => {
         experts: 0, 
         candidates: 0 
       });
+    }
+  };
+
+  const fetchBoards = async () => {
+    try {
+      const res = await axios.get('http://localhost:5000/api/boards');
+      setActiveBoards(res.data);
+    } catch (error) {
+      console.error("Failed to fetch active boards.");
     }
   };
 
@@ -176,8 +184,19 @@ const AdminDashboard = () => {
         subject: board.subject,
         date: board.date
       });
-      alert(`Interview Board for '${board.subject}' successfully initialized!`);
+      
+      // Automatically broadcast to the entire network when a board is made
+      await axios.post('http://localhost:5000/api/notifications', {
+        recipient: 'ALL', 
+        sender: `System Admin`, 
+        message: `New Interview Board Initialized: ${board.subject} on ${board.date}. Eligible candidates and experts please prepare for sync.`, 
+        type: "alert", 
+        actionTab: "overview" 
+      });
+
+      alert(`Interview Board for '${board.subject}' successfully initialized! Network Notified.`);
       setBoard({ subject: '', date: '' });
+      fetchBoards();
     } catch (error) {
       alert('Failed to connect to Database to create board.');
     } finally {
@@ -452,7 +471,7 @@ const AdminDashboard = () => {
                       <h3 className="text-[10px] font-black uppercase tracking-widest text-white">
                         Alerts
                       </h3>
-                      <span className="text-[9px] bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded font-bold">
+                      <span className="text-[9px] bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded font-bold uppercase">
                         {unreadCount} New
                       </span>
                     </div>
@@ -640,7 +659,7 @@ const AdminDashboard = () => {
                         <input 
                           type="date" 
                           value={board.date}
-                          className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl outline-none focus:border-purple-500/50 mt-2 transition-all text-sm font-medium text-white"
+                          className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl outline-none focus:border-purple-500/50 mt-2 transition-all text-sm font-medium text-slate-300"
                           onChange={(e) => setBoard({...board, date: e.target.value})}
                         />
                       </div>
@@ -729,12 +748,49 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* --- NEW: ACTIVE INTERVIEW BOARDS UI --- */}
+                <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-md">
+                  <h2 className="text-xl font-black uppercase tracking-widest text-purple-400 mb-6">
+                    Active Interview Boards
+                  </h2>
+                  
+                  {activeBoards.length === 0 ? (
+                    <div className="text-center p-10 border border-dashed border-white/10 rounded-2xl text-slate-500 font-bold uppercase text-xs tracking-widest">
+                      No active boards found.
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {activeBoards.map(board => (
+                        <div key={board._id} className="bg-black/40 border border-white/5 p-6 rounded-[2rem] flex flex-col md:flex-row justify-between md:items-center gap-6">
+                          <div className="flex items-center gap-6">
+                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/5 flex items-center justify-center shadow-inner">
+                              <Video className="text-purple-400" size={24} />
+                            </div>
+                            <div>
+                              <h3 className="text-lg font-black tracking-wider uppercase text-white">
+                                {board.boardSubject}
+                              </h3>
+                              <p className="text-xs text-slate-400 uppercase tracking-widest font-bold mt-1">
+                                Scheduled Date: <span className="text-purple-400">{board.boardDate}</span>
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-3">
+                            <span className="px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 animate-pulse">
+                              {board.status}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </motion.div>
             )}
 
-            {/* ========================================== */}
-            {/* BROADCAST TAB: SEND SYSTEM NOTIFICATIONS   */}
-            {/* ========================================== */}
+            {/* BROADCAST TAB */}
             {activeTab === 'broadcast' && (
               <motion.div 
                 key="broadcast" 
@@ -799,9 +855,7 @@ const AdminDashboard = () => {
               </motion.div>
             )}
 
-            {/* ========================================== */}
-            {/* DATABASE TAB: VAULT ANALYTICS (LIVE UI)    */}
-            {/* ========================================== */}
+            {/* VAULT ANALYTICS TAB */}
             {activeTab === 'database' && (
               <motion.div 
                 key="database" 
@@ -883,9 +937,7 @@ const AdminDashboard = () => {
               </motion.div>
             )}
 
-            {/* ========================================== */}
-            {/* USERS TAB: ROLE MANAGEMENT (LIVE UI)       */}
-            {/* ========================================== */}
+            {/* USERS TAB */}
             {activeTab === 'users' && (
               <motion.div 
                 key="users" 

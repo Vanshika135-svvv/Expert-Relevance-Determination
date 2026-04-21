@@ -447,6 +447,17 @@ def create_board():
     })
     return jsonify({"status": "Success"})
 
+# THIS IS THE NEW ROUTE THAT WAS MISSING TO FETCH BOARDS
+@app.route('/api/boards', methods=['GET'])
+def get_boards():
+    """Fetch all active interview boards"""
+    try:
+        boards = list(interviews_col.find().sort("createdAt", -1))
+        for b in boards:
+            b["_id"] = str(b["_id"])
+        return jsonify(boards)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/assessments', methods=['POST'])
 def save_assessment():

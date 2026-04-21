@@ -21,7 +21,7 @@ import {
   ArrowRight,
   BrainCircuit,
   Clock,
-  Database // Added for search results
+  Database 
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -32,7 +32,6 @@ const ExpertDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation(); 
   
-  // Reference hooks for detecting clicks outside of UI widgets
   const notifRef = useRef(null); 
   const searchRef = useRef(null); 
   
@@ -68,6 +67,7 @@ const ExpertDashboard = () => {
   const [notifications, setNotifications] = useState([]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [expertSchedules, setExpertSchedules] = useState([]);
+  const [activeBoards, setActiveBoards] = useState([]); 
 
   // ==========================================
   // 6. NETWORK QUERY SEARCH STATES
@@ -76,22 +76,19 @@ const ExpertDashboard = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Fetch expert identity from local storage
   const expertName = localStorage.getItem('username') || 'Verified Expert';
 
   // ==========================================
   // AUTOMATED ASSESSMENT PRE-FILL LOGIC
   // ==========================================
   useEffect(() => {
-    // If returning from a completed interview room, auto-fill the assessment form
     if (location.state?.autoOpenAssessment) {
       setActiveTab('assessments'); 
       setEvaluation(prev => ({ 
         ...prev, 
         candidateName: location.state.evaluatedCandidate || "" 
       }));
-      
-      // Safely clear the location state so it doesn't get stuck on page refresh
+      // Clear location state to prevent locking the user on the assessment tab upon refresh
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state, navigate, location.pathname]);
@@ -101,12 +98,11 @@ const ExpertDashboard = () => {
   // ==========================================
   useEffect(() => {
     const handleClickOutside = (event) => {
-      // Close notification dropdown if clicked outside
+      // Close notifications if clicked outside
       if (notifRef.current && !notifRef.current.contains(event.target)) {
         setIsNotifOpen(false);
       }
-      
-      // Close search dropdown if clicked outside
+      // Close search if clicked outside
       if (searchRef.current && !searchRef.current.contains(event.target)) {
         setIsSearchOpen(false);
       }
@@ -124,32 +120,12 @@ const ExpertDashboard = () => {
   // ==========================================
   useEffect(() => {
     const fetchQueue = async () => {
-      // Base Simulated Queue
       const baseQueue = [
-        { 
-          id: 1, 
-          name: 'Bhaskar Tiwari', 
-          domain: 'Machine Learning', 
-          matchScore: 94, 
-          status: 'Waiting' 
-        },
-        { 
-          id: 2, 
-          name: 'Alice Chen', 
-          domain: 'Data Engineering', 
-          matchScore: 88, 
-          status: 'Scheduled' 
-        },
-        { 
-          id: 3, 
-          name: 'Rahul Sharma', 
-          domain: 'Cloud Architecture', 
-          matchScore: 91, 
-          status: 'Reviewing' 
-        }
+        { id: 1, name: 'Bhaskar Tiwari', domain: 'Machine Learning', matchScore: 94, status: 'Waiting' },
+        { id: 2, name: 'Alice Chen', domain: 'Data Engineering', matchScore: 88, status: 'Scheduled' },
+        { id: 3, name: 'Rahul Sharma', domain: 'Cloud Architecture', matchScore: 91, status: 'Reviewing' }
       ];
 
-      // Dynamically check each candidate for a resume in the GridFS database
       const queueWithResumes = await Promise.all(
         baseQueue.map(async (candidate) => {
           try {
@@ -168,20 +144,22 @@ const ExpertDashboard = () => {
           }
         })
       );
-
-      setQueue(queueWithResumes);
+      
+      setQueue(queueWithResumes); 
       setLoadingQueue(false);
     };
 
-    // Run initial fetches
+    // Initial Data Fetch
     fetchQueue();
     fetchNotifications();
     fetchExpertSchedules();
+    fetchBoards(); 
     
-    // Auto-poll the matrix every 10 seconds
+    // Poll the server every 10 seconds for updates
     const interval = setInterval(() => { 
       fetchNotifications(); 
       fetchExpertSchedules(); 
+      fetchBoards(); 
     }, 10000);
     
     return () => clearInterval(interval);
@@ -195,7 +173,6 @@ const ExpertDashboard = () => {
       const now = new Date().getTime();
       
       expertSchedules.forEach(s => {
-        // Only check confirmed meetings
         if (s.status === 'Confirmed') {
           const diff = new Date(s.dateTime).getTime() - now;
           
@@ -227,38 +204,34 @@ const ExpertDashboard = () => {
   // ==========================================
   // CORE FUNCTIONS
   // ==========================================
-
-  const handleLogout = () => {
-    localStorage.clear();
-    navigate('/login');
+  const handleLogout = () => { 
+    localStorage.clear(); 
+    navigate('/login'); 
+  };
+  
+  const handleViewResume = (fileId) => { 
+    window.open(`http://localhost:5000/api/vault/view/${fileId}`, '_blank'); 
   };
 
-  const handleViewResume = (fileId) => {
-    window.open(`http://localhost:5000/api/vault/view/${fileId}`, '_blank');
-  };
-
-  // ==========================================
   // SEARCH BAR LOGIC
-  // ==========================================
   const handleNetworkQuery = (e) => {
     const value = e.target.value;
     setSearchQuery(value);
     
     if (value.length > 0) {
-      setIsSearchOpen(true);
+      setIsSearchOpen(true); 
       setIsSearching(true);
       
-      // Simulate network latency for finding results
       setTimeout(() => {
         setIsSearching(false);
       }, 800);
-    } else {
-      setIsSearchOpen(false);
+    } else { 
+      setIsSearchOpen(false); 
     }
   };
 
   // ==========================================
-  // SCHEDULING LOGIC
+  // SCHEDULING & BOARDS LOGIC
   // ==========================================
   const fetchExpertSchedules = async () => {
     try {
@@ -268,6 +241,15 @@ const ExpertDashboard = () => {
       setExpertSchedules(res.data);
     } catch (err) {
       console.error("Failed to fetch schedules");
+    }
+  };
+
+  const fetchBoards = async () => {
+    try {
+      const res = await axios.get('http://localhost:5000/api/boards');
+      setActiveBoards(res.data);
+    } catch (error) {
+      console.error("Failed to fetch boards");
     }
   };
 
@@ -284,7 +266,7 @@ const ExpertDashboard = () => {
         sender: expertName 
       });
       
-      // Notify the Candidate of the Expert's decision
+      // Notify candidate
       await axios.post('http://localhost:5000/api/notifications', {
         recipient: candidateName, 
         sender: expertName, 
@@ -295,31 +277,30 @@ const ExpertDashboard = () => {
       
       alert(`Slot ${status}`);
       fetchExpertSchedules();
-    } catch (err) {
-      console.error("Schedule sync failed");
-      alert("Matrix sync failed.");
+    } catch (err) { 
+      alert("Matrix sync failed."); 
     }
   };
 
-  // ==========================================
-  // SYNC ACTIONS & NOTIFICATIONS
-  // ==========================================
-  const handleJoinSync = async (candidateName) => {
+  const handleJoinSync = async (targetName) => {
     try {
       await axios.post('http://localhost:5000/api/notifications', {
-        recipient: candidateName,
-        sender: expertName,
-        message: `${expertName} has initialized the Neural Sync room. Establish connection immediately.`,
-        type: "alert",
+        recipient: targetName, 
+        sender: expertName, 
+        message: `${expertName} has initialized the Neural Sync room. Establish connection immediately.`, 
+        type: "alert", 
         actionTab: "queue"
       });
     } catch (err) {
-      console.error("Failed to ping candidate.");
+      console.error("Failed to alert candidate of room sync");
     }
     
-    navigate('/interview', { state: { target: candidateName } });
+    navigate('/interview', { state: { target: targetName } });
   };
 
+  // ==========================================
+  // NOTIFICATIONS
+  // ==========================================
   const fetchNotifications = async () => {
     try {
       const res = await axios.get(
@@ -327,7 +308,7 @@ const ExpertDashboard = () => {
       );
       setNotifications(res.data);
     } catch (err) {
-      console.error("Failed to fetch system notifications");
+      console.error("Failed to fetch notifications");
     }
   };
 
@@ -340,31 +321,33 @@ const ExpertDashboard = () => {
     }
   };
 
+  const unreadCount = notifications.filter(n => !n.read).length;
+
   // ==========================================
   // EVALUATION & SCORING LOGIC
   // ==========================================
   const submitScore = async (e) => {
     if (e) e.preventDefault();
     
-    if (!evaluation.candidateName) {
+    if (!evaluation.candidateName) { 
       setSubmitStatus({ 
         message: 'Candidate identity required.', 
         type: 'error' 
-      });
-      return;
+      }); 
+      return; 
     }
     
-    setEvalLoading(true);
+    setEvalLoading(true); 
     setSubmitStatus({ message: '', type: '' });
-
+    
     try {
-      const res = await axios.post('http://localhost:5000/api/assessments', {
-        expert_name: expertName,
-        candidate_name: evaluation.candidateName,
-        score: evaluation.score,
-        remarks: evaluation.remarks
+      const res = await axios.post('http://localhost:5000/api/assessments', { 
+        expert_name: expertName, 
+        candidate_name: evaluation.candidateName, 
+        score: evaluation.score, 
+        remarks: evaluation.remarks 
       });
-
+      
       if (res.data.status === "Success" || res.status === 200) {
         setSubmitStatus({ 
           message: 'Evaluation Encrypted & Saved to Database!', 
@@ -375,24 +358,24 @@ const ExpertDashboard = () => {
           score: 5, 
           remarks: '' 
         }); 
-        
         setTimeout(() => setSubmitStatus({ message: '', type: '' }), 3000);
       }
-    } catch (err) {
-      setSubmitStatus({ message: 'Database Sync Failed.', type: 'error' });
-    } finally {
-      setEvalLoading(false);
+    } catch (err) { 
+      setSubmitStatus({ 
+        message: 'Database Sync Failed.', 
+        type: 'error' 
+      }); 
+    } finally { 
+      setEvalLoading(false); 
     }
   };
-
-  const unreadCount = notifications.filter(n => !n.read).length;
 
   // ==========================================
   // SIDEBAR COMPONENT
   // ==========================================
   const SidebarItem = ({ icon: Icon, label, id }) => (
-    <button
-      onClick={() => setActiveTab(id)}
+    <button 
+      onClick={() => setActiveTab(id)} 
       className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all group ${
         activeTab === id 
           ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.15)]' 
@@ -404,39 +387,39 @@ const ExpertDashboard = () => {
         className={activeTab === id ? 'animate-pulse' : 'group-hover:scale-110 transition-transform'} 
       />
       <AnimatePresence>
-        {isSidebarOpen && (
+        {isSidebarOpen && ( 
           <motion.span 
             initial={{ opacity: 0, width: 0 }} 
             animate={{ opacity: 1, width: 'auto' }} 
-            exit={{ opacity: 0, width: 0 }}
+            exit={{ opacity: 0, width: 0 }} 
             className="font-bold text-xs uppercase tracking-widest whitespace-nowrap overflow-hidden"
           >
             {label}
-          </motion.span>
+          </motion.span> 
         )}
       </AnimatePresence>
     </button>
   );
 
   // ==========================================
-  // COMPONENT RENDER
+  // RENDER
   // ==========================================
   return (
     <div className="min-h-screen bg-[#020617] text-white flex overflow-hidden selection:bg-cyan-500 selection:text-black font-sans">
       
-      {/* --- BACKGROUND GLOW EFFECTS --- */}
+      {/* Background Glows */}
       <div className="absolute inset-0 -z-10 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40vw] h-[40vw] bg-blue-600/10 blur-[120px] rounded-full mix-blend-screen" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[30vw] h-[30vw] bg-cyan-500/10 blur-[100px] rounded-full mix-blend-screen" />
       </div>
 
-      {/* --- LEFT SIDEBAR --- */}
+      {/* --- SIDEBAR --- */}
       <motion.aside 
-        animate={{ width: isSidebarOpen ? 280 : 100 }}
+        animate={{ width: isSidebarOpen ? 280 : 100 }} 
         className="h-screen bg-black/40 backdrop-blur-2xl border-r border-white/10 flex flex-col p-6 relative z-20 shrink-0"
       >
         <button 
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
           className="absolute -right-4 top-10 w-8 h-8 bg-cyan-500 text-black rounded-full flex items-center justify-center cursor-pointer hover:scale-110 transition-transform shadow-[0_0_15px_rgba(6,182,212,0.5)]"
         >
           <ChevronLeft 
@@ -478,7 +461,7 @@ const ExpertDashboard = () => {
         </nav>
 
         <button 
-          onClick={handleLogout}
+          onClick={handleLogout} 
           className="w-full flex items-center gap-4 p-4 rounded-2xl text-red-400 hover:bg-red-500/10 hover:border-red-500/30 border border-transparent transition-all group mt-4 shrink-0"
         >
           <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
@@ -500,11 +483,12 @@ const ExpertDashboard = () => {
       {/* --- MAIN CONTENT AREA --- */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
         
-        {/* --- TOP HEADER BAR --- */}
-        {/* FIX APPLIED HERE: Added min-w-0, flex-1, and truncate to stop massive text wrapping */}
+        {/* Topbar */}
         <header className="relative z-50 h-24 px-6 md:px-10 flex items-center justify-between border-b border-white/5 bg-white/[0.02] backdrop-blur-md shrink-0">
+          
+          {/* Header Text - Truncated for protection */}
           <div className="min-w-0 flex-1 pr-4">
-            <h1 className="text-lg md:text-xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-500 truncate">
+            <h1 className="text-lg md:text-2xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-500 truncate">
               Welcome, {expertName}
             </h1>
             <p className="text-xs text-slate-400 font-mono mt-1 flex items-center gap-2">
@@ -516,7 +500,7 @@ const ExpertDashboard = () => {
             </p>
           </div>
           
-          {/* FIX APPLIED HERE: Added shrink-0 to prevent right-side icons from squishing */}
+          {/* Right Side Action Icons - Shrink-0 FIX */}
           <div className="flex items-center gap-6 shrink-0">
             
             {/* NOTIFICATION WIDGET W/ CLICK OUTSIDE */}
@@ -559,7 +543,11 @@ const ExpertDashboard = () => {
                         notifications.map(n => (
                           <div 
                             key={n._id} 
-                            className={`p-4 rounded-xl transition-all ${n.read ? 'bg-transparent opacity-50 hover:bg-white/5' : 'bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20'}`}
+                            className={`p-4 rounded-xl transition-all cursor-pointer ${
+                              n.read 
+                              ? 'bg-transparent opacity-50 hover:bg-white/5' 
+                              : 'bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20'
+                            }`}
                           >
                             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-1 flex justify-between">
                               {n.sender} 
@@ -572,7 +560,6 @@ const ExpertDashboard = () => {
                             </p>
                             
                             <div className="flex gap-2">
-                              {/* QUICK LINK BUTTON */}
                               <button 
                                 onClick={() => { 
                                   setActiveTab(n.actionTab || 'overview'); 
@@ -583,7 +570,6 @@ const ExpertDashboard = () => {
                                 View <ArrowRight size={10}/>
                               </button>
                               
-                              {/* MARK READ BUTTON */}
                               {!n.read && (
                                 <button 
                                   onClick={() => markNotificationRead(n._id)} 
@@ -602,7 +588,7 @@ const ExpertDashboard = () => {
               </AnimatePresence>
             </div>
 
-            {/* --- NEW: QUERY NETWORK SEARCH WIDGET --- */}
+            {/* --- NETWORK QUERY SEARCH WIDGET --- */}
             <div className="relative group hidden lg:block" ref={searchRef}>
               <Search 
                 className={`absolute left-4 top-1/2 -translate-y-1/2 ${isSearchOpen ? 'text-cyan-400' : 'text-slate-500'} transition-colors`} 
@@ -655,13 +641,6 @@ const ExpertDashboard = () => {
                               <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5">Active Connections</p>
                             </div>
                           </button>
-                          <button className="w-full text-left p-3 rounded-xl hover:bg-cyan-500/10 transition-all flex items-center gap-3 group">
-                            <Settings size={14} className="text-slate-500 group-hover:text-cyan-400 transition-colors" />
-                            <div>
-                              <p className="text-xs font-bold text-white truncate w-56">System Parameters</p>
-                              <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5">Configuration</p>
-                            </div>
-                          </button>
                         </>
                       )}
                     </div>
@@ -676,10 +655,10 @@ const ExpertDashboard = () => {
           </div>
         </header>
 
-        {/* --- SCROLLABLE CONTENT --- */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar">
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
           <AnimatePresence mode="wait">
-             
+            
             {/* OVERVIEW TAB */}
             {activeTab === 'overview' && (
               <motion.div 
@@ -727,6 +706,51 @@ const ExpertDashboard = () => {
                     <Video size={18} /> Initialize Sync
                   </button>
                 </div>
+
+                {/* --- ACTIVE INTERVIEW BOARDS --- */}
+                <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-md">
+                  <h2 className="text-xl font-black uppercase tracking-widest text-cyan-400 mb-6">
+                    Live Interview Boards
+                  </h2>
+                  
+                  {activeBoards.length === 0 ? (
+                    <div className="text-center p-10 border border-dashed border-white/10 rounded-2xl text-slate-500 font-bold uppercase text-xs tracking-widest">
+                      No active boards found.
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {activeBoards.map(board => (
+                        <div 
+                          key={board._id} 
+                          className="bg-black/40 border border-white/5 p-6 rounded-[2rem] flex flex-col md:flex-row justify-between md:items-center gap-6 hover:border-blue-500/30 transition-colors group"
+                        >
+                          <div className="flex items-center gap-6 min-w-0 flex-1">
+                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/5 flex items-center justify-center shadow-inner shrink-0">
+                              <Video className="text-cyan-400" size={24} />
+                            </div>
+                            <div className="min-w-0 flex-1 pr-4">
+                              <h3 className="text-lg font-black tracking-wider uppercase text-white truncate">
+                                {board.boardSubject}
+                              </h3>
+                              <p className="text-xs text-slate-400 uppercase tracking-widest font-bold mt-1 truncate">
+                                Scheduled: <span className="text-cyan-400">{board.boardDate}</span>
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-3 w-full md:w-auto justify-end shrink-0">
+                            <button 
+                              onClick={() => handleJoinSync("Interview Board")} 
+                              className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-black uppercase text-[10px] tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center gap-2 whitespace-nowrap active:scale-95"
+                            >
+                              <Video size={14}/> Host Board
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </motion.div>
             )}
 
@@ -752,62 +776,64 @@ const ExpertDashboard = () => {
                     <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
                   </div>
                 ) : (
-                  queue.map((candidate) => (
-                    <div 
-                      key={candidate.id} 
-                      className="bg-black/40 border border-white/10 p-6 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-6 hover:bg-white/[0.02] transition-colors group"
-                    >
-                      <div className="flex items-center gap-6">
-                        <div className="w-14 h-14 rounded-2xl bg-slate-800 flex items-center justify-center font-black text-xl text-slate-500 group-hover:text-cyan-400 transition-colors">
-                          {candidate.name.charAt(0)}
+                  <div className="space-y-4">
+                    {queue.map((candidate) => (
+                      <div 
+                        key={candidate.id} 
+                        className="bg-black/40 border border-white/10 p-6 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-6 hover:bg-white/[0.02] transition-colors group"
+                      >
+                        <div className="flex items-center gap-6 min-w-0 flex-1">
+                          <div className="w-14 h-14 rounded-2xl bg-slate-800 flex items-center justify-center font-black text-xl text-slate-500 group-hover:text-cyan-400 transition-colors shrink-0">
+                            {candidate.name.charAt(0)}
+                          </div>
+                          <div className="min-w-0 flex-1 pr-4">
+                            <h3 className="text-lg font-black tracking-wider uppercase text-white truncate">
+                              {candidate.name}
+                            </h3>
+                            <p className="text-xs text-slate-400 uppercase tracking-widest font-bold mt-1 truncate">
+                              Domain: <span className="text-cyan-400">{candidate.domain}</span>
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="text-lg font-black tracking-wider uppercase text-white">
-                            {candidate.name}
-                          </h3>
-                          <p className="text-xs text-slate-400 uppercase tracking-widest font-bold mt-1">
-                            Expert Domain: {candidate.domain}
-                          </p>
-                        </div>
-                      </div>
 
-                      <div className="flex flex-wrap items-center justify-center md:justify-end gap-4 w-full md:w-auto">
-                        
-                        {/* RESUME VIEWER FOR EXPERT */}
-                        {candidate.resumeId ? (
+                        <div className="flex flex-wrap items-center justify-center md:justify-end gap-4 w-full md:w-auto shrink-0">
+                          {candidate.resumeId ? (
+                            <button 
+                              onClick={() => handleViewResume(candidate.resumeId)} 
+                              className="px-4 py-2.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-black border border-emerald-500/30 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
+                            >
+                              <FileText size={14} /> View Resume
+                            </button>
+                          ) : (
+                            <span className="text-[9px] text-slate-600 font-bold uppercase italic px-2 tracking-widest">
+                              No Resume Node
+                            </span>
+                          )}
+                          
+                          <div className="text-center min-w-[80px]">
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                              Match
+                            </p>
+                            <span className="text-xl font-black text-emerald-400">
+                              {candidate.matchScore}%
+                            </span>
+                          </div>
+                          
                           <button 
-                            onClick={() => handleViewResume(candidate.resumeId)} 
-                            className="px-4 py-2.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-black border border-emerald-500/30 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
+                            onClick={() => handleJoinSync(candidate.name)} 
+                            className="px-6 py-3 bg-cyan-500/10 hover:bg-cyan-500 text-cyan-400 hover:text-black border border-cyan-500/30 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap shadow-lg active:scale-95"
                           >
-                            <FileText size={14} /> View Resume
+                            <Video size={14} /> Join Now
                           </button>
-                        ) : (
-                          <span className="text-[9px] text-slate-600 font-bold uppercase italic px-2 tracking-widest">
-                            No Resume Node
-                          </span>
-                        )}
-                        <div className="text-center min-w-[80px]">
-                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                            Match
-                          </p>
-                          <span className="text-xl font-black text-emerald-400">
-                            {candidate.matchScore}%
-                          </span>
                         </div>
-                        <button 
-                          onClick={() => handleJoinSync(candidate.name)} 
-                          className="px-6 py-3 bg-cyan-500/10 hover:bg-cyan-500 text-cyan-400 hover:text-black border border-cyan-500/30 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap shadow-lg"
-                        >
-                          <Video size={14} /> Join Now
-                        </button>
                       </div>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 )}
               </motion.div>
             )}
 
-            {/* AVAILABILITY / SCHEDULE MANAGER W/ JOIN BUTTON LOGIC */}
+            {/* SCHEDULE W/ ALWAYS-VISIBLE JOIN BUTTON */}
             {activeTab === 'schedule' && (
               <motion.div 
                 key="schedule" 
@@ -816,92 +842,89 @@ const ExpertDashboard = () => {
                 exit={{ opacity: 0, x: -20 }} 
                 className="max-w-4xl mx-auto space-y-8"
               >
-                <h2 className="text-xl font-black uppercase tracking-widest text-cyan-400">
-                  Node Availability Manager
-                </h2>
-                
-                <div className="space-y-4">
-                  {expertSchedules.length === 0 ? (
-                    <div className="text-center p-20 bg-white/5 rounded-[2.5rem] border border-dashed border-white/10 text-slate-600 font-black uppercase text-xs tracking-widest">
-                      No active slot requests.
-                    </div>
-                  ) : expertSchedules.map(s => {
-                    
-                    // TIME LOGIC: Is it time to join? 
-                    // True if status is Confirmed AND time is within 15 mins prior, up to 60 mins after
-                    const diff = new Date(s.dateTime).getTime() - new Date().getTime();
-                    const isJoinable = s.status === 'Confirmed' && diff <= 15 * 60 * 1000 && diff >= -60 * 60 * 1000;
-
-                    return (
-                      <div 
-                        key={s._id} 
-                        className="bg-black/40 border border-white/10 p-6 rounded-[2.5rem] flex flex-col md:flex-row justify-between gap-6 hover:bg-white/[0.02] transition-colors"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center font-black text-slate-500">
-                            {s.candidate.charAt(0)}
-                          </div>
-                          <div>
-                            <p className="font-bold text-white uppercase tracking-wider">
-                              {s.candidate}
-                            </p>
-                            <p className="text-[10px] text-cyan-400 font-mono mt-1 bg-cyan-500/10 px-2 py-0.5 rounded uppercase font-bold w-fit">
-                              {new Date(s.dateTime).toLocaleString()}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex flex-wrap items-center gap-3">
-                          {s.status === 'Pending' ? (
-                            <>
-                              <button 
-                                onClick={() => handleScheduleResponse(s._id, s.candidate, s.dateTime, 'Confirmed')} 
-                                className="px-6 py-3 bg-emerald-500 text-black font-black text-[10px] uppercase rounded-xl hover:bg-emerald-400 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]"
-                              >
-                                Accept
-                              </button>
-                              
-                              <input 
-                                type="datetime-local" 
-                                className="bg-black/40 border border-white/10 p-3 rounded-xl text-xs text-white outline-none focus:border-cyan-500" 
-                                onChange={(e) => s.newTime = e.target.value} 
-                              />
-                              
-                              <button 
-                                onClick={() => handleScheduleResponse(s._id, s.candidate, s.newTime, 'Pending')} 
-                                className="px-6 py-3 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-black text-[10px] uppercase rounded-xl hover:bg-cyan-500 hover:text-black transition-all"
-                              >
-                                Counter
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              {isJoinable ? (
-                                <button 
-                                  onClick={() => handleJoinSync(s.candidate)} 
-                                  className="px-6 py-2 bg-cyan-500 text-black font-black uppercase text-[10px] rounded-xl flex items-center gap-2 shadow-[0_0_20px_rgba(6,182,212,0.5)] animate-pulse"
-                                >
-                                  <Video size={14}/> Join Meeting
-                                </button>
-                              ) : (
-                                <button 
-                                  disabled
-                                  className="px-6 py-2 bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5 font-black uppercase text-[10px] rounded-xl flex items-center gap-2 transition-all"
-                                  title="Activates 15 minutes before the scheduled time"
-                                >
-                                  <Clock size={14}/> Awaiting Time
-                                </button>
-                              )}
-                              
-                              <span className="text-emerald-400 text-[10px] font-black uppercase border border-emerald-500/30 px-6 py-3 rounded-xl bg-emerald-500/5 flex items-center gap-2">
-                                <CheckCircle2 size={14} /> Confirmed
-                              </span>
-                            </>
-                          )}
-                        </div>
+                <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-md">
+                  <h2 className="text-xl font-black uppercase tracking-widest text-cyan-400 mb-6">
+                    Nexus Appointment Sync
+                  </h2>
+                  <div className="space-y-4">
+                    {expertSchedules.length === 0 ? (
+                      <div className="text-center p-20 bg-white/5 rounded-[2.5rem] border border-dashed border-white/10 text-slate-600 font-black uppercase text-xs tracking-widest">
+                        No active slot requests.
                       </div>
-                    );
-                  })}
+                    ) : expertSchedules.map(s => {
+                      const diff = new Date(s.dateTime).getTime() - new Date().getTime();
+                      const isJoinable = s.status === 'Confirmed' && diff <= 15 * 60 * 1000 && diff >= -60 * 60 * 1000;
+                      
+                      return (
+                        <div 
+                          key={s._id} 
+                          className="bg-black/40 border border-white/10 p-6 rounded-[2.5rem] flex flex-col md:flex-row justify-between gap-6 hover:bg-white/[0.02] transition-colors"
+                        >
+                          <div className="flex items-center gap-4 min-w-0 flex-1">
+                            <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center font-black text-slate-500 shrink-0">
+                              {s.candidate.charAt(0)}
+                            </div>
+                            <div className="min-w-0 flex-1 pr-4">
+                              <p className="font-bold text-white uppercase tracking-wider truncate">
+                                {s.candidate}
+                              </p>
+                              <p className="text-[10px] text-cyan-400 font-mono mt-1 bg-cyan-500/10 px-2 py-0.5 rounded uppercase font-bold w-fit">
+                                {new Date(s.dateTime).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex flex-wrap items-center gap-3 shrink-0">
+                            {s.status === 'Pending' ? (
+                              <>
+                                <button 
+                                  onClick={() => handleScheduleResponse(s._id, s.candidate, s.dateTime, 'Confirmed')} 
+                                  className="px-6 py-3 bg-emerald-500 text-black font-black text-[10px] uppercase rounded-xl hover:bg-emerald-400 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                                >
+                                  Accept
+                                </button>
+                                
+                                <input 
+                                  type="datetime-local" 
+                                  className="bg-black/40 border border-white/10 p-3 rounded-xl text-xs text-white outline-none focus:border-cyan-500" 
+                                  onChange={(e) => s.newTime = e.target.value} 
+                                />
+                                
+                                <button 
+                                  onClick={() => handleScheduleResponse(s._id, s.candidate, s.newTime, 'Pending')} 
+                                  className="px-6 py-3 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-black text-[10px] uppercase rounded-xl hover:bg-cyan-500 hover:text-black transition-all"
+                                >
+                                  Counter
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                {isJoinable ? (
+                                  <button 
+                                    onClick={() => handleJoinSync(s.candidate)} 
+                                    className="px-6 py-2 bg-cyan-500 text-black font-black uppercase text-[10px] rounded-xl flex items-center gap-2 shadow-[0_0_20px_rgba(6,182,212,0.5)] animate-pulse"
+                                  >
+                                    <Video size={14}/> Join Meeting
+                                  </button>
+                                ) : (
+                                  <button 
+                                    disabled 
+                                    className="px-6 py-2 bg-slate-800 text-slate-500 cursor-not-allowed border border-white/5 font-black uppercase text-[10px] rounded-xl flex items-center gap-2 transition-all" 
+                                    title="Activates 15 minutes before the scheduled time"
+                                  >
+                                    <Clock size={14}/> Awaiting Time
+                                  </button>
+                                )}
+                                <span className="text-emerald-400 text-[10px] font-black uppercase border border-emerald-500/30 px-6 py-3 rounded-xl bg-emerald-500/5 flex items-center gap-2">
+                                  <CheckCircle2 size={14} /> Confirmed
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -930,7 +953,6 @@ const ExpertDashboard = () => {
                     <h3 className="text-lg font-black uppercase tracking-widest mb-6 text-white">
                       Log Assessment
                     </h3>
-                    
                     <form className="space-y-6" onSubmit={submitScore}>
                       <div>
                         <label className="block text-slate-500 text-[10px] font-black mb-2 uppercase tracking-widest ml-1">
@@ -997,7 +1019,7 @@ const ExpertDashboard = () => {
                       )}
                     </form>
                   </div>
-
+                  
                   <div className="bg-gradient-to-br from-white/5 to-transparent border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-md h-fit">
                     <ShieldCheck className="text-blue-400 mb-6" size={32} />
                     <h3 className="text-lg font-black uppercase tracking-widest mb-6">
@@ -1019,15 +1041,6 @@ const ExpertDashboard = () => {
                     </ul>
                   </div>
                 </div>
-              </motion.div>
-            )}
-
-            {/* SETTINGS / OFFLINE TABS */}
-            {activeTab === 'settings' && (
-              <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-[50vh] flex flex-col items-center justify-center text-center max-w-md mx-auto">
-                <Settings size={48} className="text-slate-700 mb-6 animate-spin-slow" />
-                <h2 className="text-xl font-black uppercase tracking-widest text-slate-500 mb-2">Module Offline</h2>
-                <p className="text-xs text-slate-600 uppercase tracking-widest leading-relaxed">System calibration in progress.</p>
               </motion.div>
             )}
 
