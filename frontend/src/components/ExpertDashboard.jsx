@@ -107,12 +107,8 @@ const ExpertDashboard = () => {
         setIsSearchOpen(false);
       }
     };
-    
     document.addEventListener("mousedown", handleClickOutside);
-    
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [notifRef, searchRef]);
 
   // ==========================================
@@ -130,7 +126,7 @@ const ExpertDashboard = () => {
         baseQueue.map(async (candidate) => {
           try {
             const res = await axios.get(
-              `https://expert-relevance-determination.onrender.com/api/expert/get_resume/${encodeURIComponent(candidate.name)}`
+              `http://localhost:5000/api/expert/get_resume/${encodeURIComponent(candidate.name)}`
             );
             return { 
               ...candidate, 
@@ -163,7 +159,7 @@ const ExpertDashboard = () => {
     }, 10000);
     
     return () => clearInterval(interval);
-  }, []);
+  }, [expertName]); // Dependency array updated
 
   // ==========================================
   // AUTOMATED 15-MINUTE REMINDER LOGIC
@@ -184,7 +180,7 @@ const ExpertDashboard = () => {
           ) {
             localStorage.setItem(`alerted_${s._id}`, 'true');
             
-            axios.post('https://expert-relevance-determination.onrender.com/api/notifications', {
+            axios.post('http://localhost:5000/api/notifications', {
               recipient: expertName, 
               sender: 'System Scheduler', 
               type: 'alert', 
@@ -210,7 +206,7 @@ const ExpertDashboard = () => {
   };
   
   const handleViewResume = (fileId) => { 
-    window.open(`https://expert-relevance-determination.onrender.com/api/vault/view/${fileId}`, '_blank'); 
+    window.open(`http://localhost:5000/api/vault/view/${fileId}`, '_blank'); 
   };
 
   // SEARCH BAR LOGIC
@@ -236,7 +232,7 @@ const ExpertDashboard = () => {
   const fetchExpertSchedules = async () => {
     try {
       const res = await axios.get(
-        `https://expert-relevance-determination.onrender.com/api/schedules/${encodeURIComponent(expertName)}`
+        `http://localhost:5000/api/schedules/${encodeURIComponent(expertName)}`
       );
       setExpertSchedules(res.data);
     } catch (err) {
@@ -246,7 +242,7 @@ const ExpertDashboard = () => {
 
   const fetchBoards = async () => {
     try {
-      const res = await axios.get('https://expert-relevance-determination.onrender.com/api/boards');
+      const res = await axios.get('http://localhost:5000/api/boards');
       setActiveBoards(res.data);
     } catch (error) {
       console.error("Failed to fetch boards");
@@ -259,7 +255,7 @@ const ExpertDashboard = () => {
     }
     
     try {
-      await axios.post('https://expert-relevance-determination.onrender.com/api/schedules', { 
+      await axios.post('http://localhost:5000/api/schedules', { 
         id, 
         dateTime, 
         status, 
@@ -267,7 +263,7 @@ const ExpertDashboard = () => {
       });
       
       // Notify candidate
-      await axios.post('https://expert-relevance-determination.onrender.com/api/notifications', {
+      await axios.post('http://localhost:5000/api/notifications', {
         recipient: candidateName, 
         sender: expertName, 
         type: 'info', 
@@ -284,7 +280,7 @@ const ExpertDashboard = () => {
 
   const handleJoinSync = async (targetName) => {
     try {
-      await axios.post('https://expert-relevance-determination.onrender.com/api/notifications', {
+      await axios.post('http://localhost:5000/api/notifications', {
         recipient: targetName, 
         sender: expertName, 
         message: `${expertName} has initialized the Neural Sync room. Establish connection immediately.`, 
@@ -304,7 +300,7 @@ const ExpertDashboard = () => {
   const fetchNotifications = async () => {
     try {
       const res = await axios.get(
-        `https://expert-relevance-determination.onrender.com/api/notifications/${encodeURIComponent(expertName)}`
+        `http://localhost:5000/api/notifications/${encodeURIComponent(expertName)}`
       );
       setNotifications(res.data);
     } catch (err) {
@@ -314,7 +310,7 @@ const ExpertDashboard = () => {
 
   const markNotificationRead = async (id) => {
     try {
-      await axios.put(`https://expert-relevance-determination.onrender.com/api/notifications/read/${id}`);
+      await axios.put(`http://localhost:5000/api/notifications/read/${id}`);
       fetchNotifications();
     } catch (err) {
       console.error("Failed to mark read");
@@ -341,7 +337,7 @@ const ExpertDashboard = () => {
     setSubmitStatus({ message: '', type: '' });
     
     try {
-      const res = await axios.post('https://expert-relevance-determination.onrender.com/api/assessments', { 
+      const res = await axios.post('http://localhost:5000/api/assessments', { 
         expert_name: expertName, 
         candidate_name: evaluation.candidateName, 
         score: evaluation.score, 
@@ -369,6 +365,57 @@ const ExpertDashboard = () => {
       setEvalLoading(false); 
     }
   };
+
+  // ==========================================
+  // PRIORITY NODE LOGIC (DYNAMIC OVERVIEW BANNER)
+  // ==========================================
+  const getPriorityNode = () => {
+    if (!expertSchedules || expertSchedules.length === 0) return null;
+
+    const now = new Date().getTime();
+    const confirmed = expertSchedules.filter(s => s.status === 'Confirmed');
+
+    let activeNodes = [];
+    let nextNodes = [];
+
+    confirmed.forEach(s => {
+      const diff = new Date(s.dateTime).getTime() - now;
+      // Active window: 15 mins before up to 60 mins after scheduled time
+      const isJoinable = diff <= 15 * 60 * 1000 && diff >= -60 * 60 * 1000;
+      
+      if (isJoinable) {
+        activeNodes.push({ ...s, diff });
+      } else if (diff > 15 * 60 * 1000) {
+        // Future appointments
+        nextNodes.push({ ...s, diff });
+      }
+    });
+
+    // If there are currently active nodes, return the one closest to now
+    if (activeNodes.length > 0) {
+      activeNodes.sort((a, b) => a.diff - b.diff);
+      return { type: 'ACTIVE', data: activeNodes[0] };
+    }
+
+    // Otherwise, return the very next upcoming appointment
+    if (nextNodes.length > 0) {
+      nextNodes.sort((a, b) => a.diff - b.diff);
+      return { type: 'UPCOMING', data: nextNodes[0] };
+    }
+
+    return null;
+  };
+
+  const priorityNode = getPriorityNode();
+  let priorityCandidateDetails = null;
+
+  if (priorityNode) {
+    // Cross-reference the priority candidate with the queue array to find their score/domain
+    priorityCandidateDetails = queue.find(q => q.name === priorityNode.data.candidate) || { 
+      domain: 'Specialist', 
+      matchScore: 'N/A' 
+    };
+  }
 
   // ==========================================
   // SIDEBAR COMPONENT
@@ -560,6 +607,7 @@ const ExpertDashboard = () => {
                             </p>
                             
                             <div className="flex gap-2">
+                              {/* QUICK LINK BUTTON */}
                               <button 
                                 onClick={() => { 
                                   setActiveTab(n.actionTab || 'overview'); 
@@ -570,6 +618,7 @@ const ExpertDashboard = () => {
                                 View <ArrowRight size={10}/>
                               </button>
                               
+                              {/* MARK READ BUTTON */}
                               {!n.read && (
                                 <button 
                                   onClick={() => markNotificationRead(n._id)} 
@@ -588,7 +637,7 @@ const ExpertDashboard = () => {
               </AnimatePresence>
             </div>
 
-            {/* --- NETWORK QUERY SEARCH WIDGET --- */}
+            {/* --- QUERY NETWORK SEARCH WIDGET --- */}
             <div className="relative group hidden lg:block" ref={searchRef}>
               <Search 
                 className={`absolute left-4 top-1/2 -translate-y-1/2 ${isSearchOpen ? 'text-cyan-400' : 'text-slate-500'} transition-colors`} 
@@ -656,15 +705,16 @@ const ExpertDashboard = () => {
         </header>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar">
           <AnimatePresence mode="wait">
-            
+             
             {/* OVERVIEW TAB */}
             {activeTab === 'overview' && (
               <motion.div 
                 key="overview" 
                 initial={{ opacity: 0, y: 20 }} 
                 animate={{ opacity: 1, y: 0 }} 
+                exit={{ opacity: 0, y: -20 }} 
                 className="space-y-8 max-w-6xl mx-auto"
               >
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -687,24 +737,70 @@ const ExpertDashboard = () => {
                   ))}
                 </div>
 
+                {/* --- DYNAMIC PRIORITY NODE BANNER --- */}
                 <div className="bg-gradient-to-r from-cyan-900/40 to-blue-900/40 border border-cyan-500/30 p-8 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between shadow-2xl gap-6">
-                  <div>
-                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-widest rounded-full mb-4">
-                      <Clock size={12} /> Priority Node
-                    </div>
-                    <h2 className="text-2xl md:text-3xl font-black uppercase tracking-widest mb-2">
-                      Bhaskar Tiwari is waiting
-                    </h2>
-                    <p className="text-sm text-cyan-100/70 font-medium">
-                      Neural match score: 94% | Domain: AI/ML
-                    </p>
-                  </div>
-                  <button 
-                    onClick={() => handleJoinSync("Bhaskar Tiwari")} 
-                    className="w-full md:w-auto px-8 py-5 bg-cyan-500 hover:bg-cyan-400 text-black font-black uppercase tracking-widest text-sm rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-[0_0_30px_rgba(6,182,212,0.4)] shrink-0"
-                  >
-                    <Video size={18} /> Initialize Sync
-                  </button>
+                  
+                  {priorityNode && priorityNode.type === 'ACTIVE' ? (
+                    <>
+                      <div className="min-w-0 flex-1 pr-4">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-widest rounded-full mb-4">
+                          <Clock size={12} className="animate-pulse" /> Priority Node Ready
+                        </div>
+                        <h2 className="text-2xl md:text-3xl font-black uppercase tracking-widest mb-2 truncate">
+                          {priorityNode.data.candidate} is waiting
+                        </h2>
+                        <p className="text-sm text-cyan-100/70 font-medium truncate">
+                          Neural match score: {priorityCandidateDetails?.matchScore || 'N/A'}% | Domain: {priorityCandidateDetails?.domain || 'Specialist'}
+                        </p>
+                      </div>
+                      <button 
+                        onClick={() => handleJoinSync(priorityNode.data.candidate)} 
+                        className="w-full md:w-auto px-8 py-5 bg-cyan-500 hover:bg-cyan-400 text-black font-black uppercase tracking-widest text-sm rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-[0_0_30px_rgba(6,182,212,0.4)] shrink-0"
+                      >
+                        <Video size={18} /> Initialize Sync
+                      </button>
+                    </>
+                  ) : priorityNode && priorityNode.type === 'UPCOMING' ? (
+                    <>
+                      <div className="min-w-0 flex-1 pr-4">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-full mb-4">
+                          <Calendar size={12} /> Next Scheduled Sync
+                        </div>
+                        <h2 className="text-2xl md:text-3xl font-black uppercase tracking-widest mb-2 truncate">
+                          {priorityNode.data.candidate}
+                        </h2>
+                        <p className="text-sm text-blue-100/70 font-medium truncate">
+                          Scheduled for: {new Date(priorityNode.data.dateTime).toLocaleString()}
+                        </p>
+                      </div>
+                      <button 
+                        disabled
+                        className="w-full md:w-auto px-8 py-5 bg-slate-800 text-slate-500 border border-white/5 font-black uppercase tracking-widest text-sm rounded-2xl flex items-center justify-center gap-3 cursor-not-allowed shrink-0 transition-all"
+                      >
+                        <Clock size={18} /> Awaiting Time
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="min-w-0 flex-1 pr-4">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-500/20 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-full mb-4">
+                          <Activity size={12} /> Matrix Standby
+                        </div>
+                        <h2 className="text-2xl md:text-3xl font-black uppercase tracking-widest mb-2 text-slate-500 truncate">
+                          No Pending Syncs
+                        </h2>
+                        <p className="text-sm text-slate-600 font-medium truncate">
+                          Queue is clear. Awaiting candidate schedule requests.
+                        </p>
+                      </div>
+                      <button 
+                        disabled
+                        className="w-full md:w-auto px-8 py-5 bg-black/40 text-slate-600 border border-white/5 font-black uppercase tracking-widest text-sm rounded-2xl flex items-center justify-center gap-3 cursor-not-allowed shrink-0"
+                      >
+                        <ShieldCheck size={18} /> Standby
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 {/* --- ACTIVE INTERVIEW BOARDS --- */}
@@ -737,11 +833,10 @@ const ExpertDashboard = () => {
                               </p>
                             </div>
                           </div>
-                          
-                          <div className="flex items-center gap-3 w-full md:w-auto justify-end shrink-0">
+                          <div className="flex items-center gap-3 shrink-0">
                             <button 
                               onClick={() => handleJoinSync("Interview Board")} 
-                              className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-black uppercase text-[10px] tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center gap-2 whitespace-nowrap active:scale-95"
+                              className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-black uppercase text-[10px] tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center gap-2 active:scale-95"
                             >
                               <Video size={14}/> Host Board
                             </button>
@@ -805,7 +900,7 @@ const ExpertDashboard = () => {
                               <FileText size={14} /> View Resume
                             </button>
                           ) : (
-                            <span className="text-[9px] text-slate-600 font-bold uppercase italic px-2 tracking-widest">
+                            <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest italic px-2">
                               No Resume Node
                             </span>
                           )}
