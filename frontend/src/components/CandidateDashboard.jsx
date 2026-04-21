@@ -7,7 +7,7 @@ import {
   Search, ShieldCheck, UploadCloud, FileText,
   Zap, BrainCircuit, CheckCircle2, Sparkles,
   BarChart3, AlertTriangle, User, Target, Mic2, Star, Clock, Network, ArrowRight, Play, Database,
-  Eye, Trash2, Bell
+  Eye, Trash2, Bell, Calendar
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -38,11 +38,14 @@ const CandidateDashboard = () => {
   const [auditing, setAuditing] = useState(false);
   const [matchError, setMatchError] = useState("");
 
-  // --- NOTIFICATION STATES ---
+  // --- NOTIFICATION & TELEMETRY STATES ---
   const [notifications, setNotifications] = useState([]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
-
   const [ping, setPing] = useState(14);
+
+  // --- SCHEDULING STATES ---
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [mySchedules, setMySchedules] = useState([]);
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -62,9 +65,13 @@ const CandidateDashboard = () => {
       fetchUserFiles();
       fetchUserResumes();
       fetchNotifications();
+      fetchMySchedules();
       
-      // Auto-poll notifications every 10 seconds
-      const notifInterval = setInterval(fetchNotifications, 10000);
+      // Auto-poll notifications and schedules every 10 seconds
+      const notifInterval = setInterval(() => {
+        fetchNotifications();
+        fetchMySchedules();
+      }, 10000);
       return () => clearInterval(notifInterval);
     }
   }, [user.name]);
@@ -81,7 +88,6 @@ const CandidateDashboard = () => {
   // --- NOTIFICATION LOGIC ---
   const fetchNotifications = async () => {
     try {
-      // URL encoded to prevent errors with spaces in names (e.g. "Bhaskar Tiwari")
       const res = await axios.get(`http://localhost:5000/api/notifications/${encodeURIComponent(user.name)}`);
       setNotifications(res.data);
     } catch (err) {
@@ -92,7 +98,7 @@ const CandidateDashboard = () => {
   const markNotificationRead = async (id) => {
     try {
       await axios.put(`http://localhost:5000/api/notifications/read/${id}`);
-      fetchNotifications(); // Refresh list to remove the red dot
+      fetchNotifications(); 
     } catch (err) {
       console.error("Failed to mark read");
     }
@@ -100,10 +106,40 @@ const CandidateDashboard = () => {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  // --- SCHEDULING LOGIC ---
+  const fetchMySchedules = async () => {
+    try {
+      const res = await axios.get(`http://localhost:5000/api/schedules/${encodeURIComponent(user.name)}`);
+      setMySchedules(res.data);
+    } catch (err) {
+      console.error("Failed to fetch schedules.");
+    }
+  };
+
+  const proposeSchedule = async (expertName) => {
+    if (!scheduleDate) return alert("Please select a Date and Time.");
+    if (!expertName || expertName === "Run Match First") return alert("Please run the Match Engine to select an Expert first.");
+
+    try {
+      await axios.post('http://localhost:5000/api/schedules', {
+        candidate: user.name,
+        expert: expertName,
+        dateTime: scheduleDate,
+        sender: user.name
+      });
+      alert("Proposal Beamed to Expert!");
+      setScheduleDate('');
+      fetchMySchedules();
+    } catch (err) {
+      console.error("Failed to propose schedule.");
+      alert("Transmission failed. Try again.");
+    }
+  };
+
   // --- SECURE RESUME VAULT LOGIC ---
   const fetchUserResumes = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/resumes/${user.name}`);
+      const res = await axios.get(`http://localhost:5000/api/resumes/${encodeURIComponent(user.name)}`);
       setResumes(res.data.map(r => ({
         id: r.gridfs_id, 
         name: r.filename || "Unknown Document",
@@ -158,7 +194,7 @@ const CandidateDashboard = () => {
   // --- SECURE GENERAL VAULT LOGIC ---
   const fetchUserFiles = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/vault/${user.name}`);
+      const res = await axios.get(`http://localhost:5000/api/vault/${encodeURIComponent(user.name)}`);
       setFiles(res.data.map(f => ({
         id: f.gridfs_id, 
         name: f.filename || "Unknown Document",
@@ -409,6 +445,7 @@ const CandidateDashboard = () => {
         <nav className="flex-1 space-y-3">
           <SidebarItem icon={Activity} label="Overview" id="overview" />
           <SidebarItem icon={BrainCircuit} label="Match Engine" id="match" />
+          <SidebarItem icon={Calendar} label="Schedule" id="schedule" />
           <SidebarItem icon={FolderOpen} label="Data Vault" id="vault" />
           <SidebarItem icon={BarChart3} label="Performance" id="results" />
         </nav>
@@ -432,7 +469,6 @@ const CandidateDashboard = () => {
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
         
         {/* Topbar */}
-        {/* ADDED 'relative z-50' to header to fix Notification Dropdown clipping! */}
         <header className="relative z-50 h-24 px-6 md:px-10 flex items-center justify-between border-b border-white/5 bg-white/[0.02] backdrop-blur-md shrink-0">
           <div>
             <h1 className="text-xl md:text-2xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 flex items-center gap-3">
@@ -754,6 +790,68 @@ const CandidateDashboard = () => {
                     </p>
                   </div>
                 )}
+              </motion.div>
+            )}
+
+            {/* SCHEDULE TAB */}
+            {activeTab === 'schedule' && (
+              <motion.div key="schedule" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="max-w-4xl mx-auto space-y-8">
+                <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-md">
+                  <h2 className="text-xl font-black uppercase text-blue-400 mb-6">Nexus Appointment Sync</h2>
+                  
+                  {/* Create New Proposal */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10 pb-10 border-b border-white/5">
+                    <div>
+                      <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Target Expert</label>
+                      <input 
+                        type="text" 
+                        readOnly 
+                        value={matches[0]?.expert_name || "Run Match First"} 
+                        className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl mt-2 text-slate-300 font-medium" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Select Slot</label>
+                      <input 
+                        type="datetime-local" 
+                        onChange={(e)=>setScheduleDate(e.target.value)} 
+                        value={scheduleDate}
+                        className="w-full bg-black/40 border border-white/10 p-4 rounded-2xl mt-2 text-white outline-none focus:border-blue-500/50 transition-all" 
+                      />
+                    </div>
+                    <button 
+                      onClick={() => proposeSchedule(matches[0]?.expert_name)} 
+                      className="md:col-span-2 bg-blue-600 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-blue-500 transition-all active:scale-[0.98] shadow-[0_0_20px_rgba(37,99,235,0.3)] text-white flex items-center justify-center gap-2"
+                    >
+                      <Calendar size={16} /> Request Neural Slot
+                    </button>
+                  </div>
+
+                  {/* List Existing Schedules */}
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-black uppercase text-slate-500 mb-4">Active Requests</h3>
+                    {mySchedules.length === 0 ? (
+                      <p className="text-[10px] text-slate-600 font-black uppercase tracking-widest text-center py-10 border border-dashed border-white/10 rounded-[2rem]">No active requests found.</p>
+                    ) : (
+                      mySchedules.map(s => (
+                        <div key={s._id} className="bg-black/20 border border-white/5 p-5 rounded-2xl flex justify-between items-center hover:bg-white/[0.02] transition-colors">
+                          <div className="flex items-center gap-4">
+                            <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400">
+                              <Calendar size={16} />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold">{s.expert}</p>
+                              <p className="text-[10px] font-mono text-blue-400 mt-1">{new Date(s.dateTime).toLocaleString()}</p>
+                            </div>
+                          </div>
+                          <span className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${s.status === 'Confirmed' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30 animate-pulse'}`}>
+                            {s.status}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               </motion.div>
             )}
 

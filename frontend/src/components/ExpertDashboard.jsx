@@ -26,9 +26,10 @@ const ExpertDashboard = () => {
   const [submitStatus, setSubmitStatus] = useState({ message: '', type: '' });
   const [evalLoading, setEvalLoading] = useState(false);
 
-  // --- NOTIFICATION STATES ---
+  // --- NOTIFICATION & SCHEDULING STATES ---
   const [notifications, setNotifications] = useState([]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [expertSchedules, setExpertSchedules] = useState([]);
 
   const expertName = localStorage.getItem('username') || 'Verified Expert';
 
@@ -40,16 +41,15 @@ const ExpertDashboard = () => {
         ...prev, 
         candidateName: location.state.evaluatedCandidate || "" 
       }));
-      
       // Safely clear the location state so it doesn't get stuck on page refresh
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state, navigate, location.pathname]);
 
-  // --- INITIALIZATION & QUEUE FETCHING ---
+  // --- INITIALIZATION & DATA FETCHING ---
   useEffect(() => {
     const fetchQueue = async () => {
-      // Base Queue Metadata
+      // Simulated Queue Data
       const baseQueue = [
         { id: 1, name: 'Bhaskar Tiwari', domain: 'Machine Learning', matchScore: 94, status: 'Waiting' },
         { id: 2, name: 'Alice Chen', domain: 'Data Engineering', matchScore: 88, status: 'Scheduled' },
@@ -72,9 +72,13 @@ const ExpertDashboard = () => {
 
     fetchQueue();
     fetchNotifications();
+    fetchExpertSchedules();
     
-    // Auto-poll notifications every 10 seconds
-    const notifInterval = setInterval(fetchNotifications, 10000);
+    // Auto-poll matrix every 10 seconds
+    const notifInterval = setInterval(() => {
+      fetchNotifications();
+      fetchExpertSchedules();
+    }, 10000);
     return () => clearInterval(notifInterval);
   }, []);
 
@@ -85,6 +89,29 @@ const ExpertDashboard = () => {
 
   const handleViewResume = (fileId) => {
     window.open(`http://localhost:5000/api/vault/view/${fileId}`, '_blank');
+  };
+
+  // --- SCHEDULING LOGIC ---
+  const fetchExpertSchedules = async () => {
+    try {
+      const res = await axios.get(`http://localhost:5000/api/schedules/${encodeURIComponent(expertName)}`);
+      setExpertSchedules(res.data);
+    } catch (err) {
+      console.error("Failed to fetch schedules");
+    }
+  };
+
+  const handleScheduleResponse = async (id, dateTime, status) => {
+    if (status === 'Pending' && !dateTime) return alert("Please select a time for your counter-proposal.");
+    try {
+      await axios.post('http://localhost:5000/api/schedules', {
+        id, dateTime, status, sender: expertName
+      });
+      alert(`Slot ${status}`);
+      fetchExpertSchedules();
+    } catch (err) {
+      console.error("Schedule sync failed");
+    }
   };
 
   // --- SYNC ACTIONS & NOTIFICATIONS ---
@@ -139,12 +166,12 @@ const ExpertDashboard = () => {
       });
 
       if (res.data.status === "Success" || res.status === 200) {
-        setSubmitStatus({ message: 'Evaluation Encrypted & Saved to Database!', type: 'success' });
+        setSubmitStatus({ message: 'Analysis logged to MongoDB successfully.', type: 'success' });
         setEvaluation({ candidateName: '', score: 5, remarks: '' }); 
         setTimeout(() => setSubmitStatus({ message: '', type: '' }), 3000);
       }
     } catch (err) {
-      setSubmitStatus({ message: 'Sync Failed: Could not connect to MongoDB.', type: 'error' });
+      setSubmitStatus({ message: 'Database Sync Failed.', type: 'error' });
     } finally {
       setEvalLoading(false);
     }
@@ -207,8 +234,8 @@ const ExpertDashboard = () => {
         <nav className="flex-1 space-y-3">
           <SidebarItem icon={Activity} label="Command Center" id="overview" />
           <SidebarItem icon={Users} label="Live Queue" id="queue" />
-          <SidebarItem icon={ClipboardCheck} label="Assessments" id="assessments" />
           <SidebarItem icon={Calendar} label="Schedule" id="schedule" />
+          <SidebarItem icon={ClipboardCheck} label="Assessments" id="assessments" />
           <SidebarItem icon={Settings} label="System Config" id="settings" />
         </nav>
 
@@ -236,30 +263,30 @@ const ExpertDashboard = () => {
             
             {/* NOTIFICATION WIDGET */}
             <div className="relative">
-              <button onClick={() => setIsNotifOpen(!isNotifOpen)} className="relative p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all border border-white/10">
-                <Bell size={18} className="text-slate-300" />
+              <button onClick={() => setIsNotifOpen(!isNotifOpen)} className="relative p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all border border-white/10 group">
+                <Bell size={18} className="text-slate-300 group-hover:text-cyan-400 transition-colors" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-[#020617] animate-pulse"></span>
+                  <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-[#020617] animate-pulse flex items-center justify-center text-[7px] font-bold text-white">{unreadCount}</span>
                 )}
               </button>
 
               <AnimatePresence>
                 {isNotifOpen && (
-                  <motion.div initial={{opacity:0, y:10, scale:0.95}} animate={{opacity:1,y:0, scale:1}} exit={{opacity:0,y:10, scale:0.95}} className="absolute right-0 mt-4 w-80 bg-[#0B1021]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] z-50 overflow-hidden">
-                    <div className="p-4 border-b border-white/5 bg-white/5 flex justify-between items-center">
-                      <h3 className="text-xs font-black uppercase tracking-widest text-white">System Alerts</h3>
+                  <motion.div initial={{opacity:0, y:10, scale:0.95}} animate={{opacity:1,y:0, scale:1}} exit={{opacity:0,y:10, scale:0.95}} className="absolute right-0 mt-4 w-80 bg-[#0B1021]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.6)] z-50 overflow-hidden">
+                    <div className="p-4 border-b border-white/10 bg-white/5 flex justify-between items-center">
+                      <h3 className="text-[10px] font-black uppercase tracking-widest text-white">Neural matrix Alerts</h3>
                       <span className="text-[9px] bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded uppercase font-bold">{unreadCount} New</span>
                     </div>
                     <div className="max-h-80 overflow-y-auto custom-scrollbar p-2 space-y-1">
                       {notifications.length === 0 ? (
-                        <div className="p-6 text-center text-slate-500 text-xs font-bold uppercase tracking-widest">No alerts detected.</div>
+                        <div className="p-8 text-center text-slate-500 text-[10px] font-black uppercase tracking-widest">No signals detected.</div>
                       ) : (
                         notifications.map(n => (
-                          <div key={n._id} onClick={() => markNotificationRead(n._id)} className={`p-4 rounded-xl cursor-pointer transition-all ${n.read ? 'bg-transparent opacity-60 hover:bg-white/5' : 'bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20'}`}>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1 flex justify-between">
-                              {n.sender} <span className="text-slate-500">{new Date(n.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                          <div key={n._id} onClick={() => markNotificationRead(n._id)} className={`p-4 rounded-xl cursor-pointer transition-all ${n.read ? 'bg-transparent opacity-50 hover:bg-white/5' : 'bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20'}`}>
+                            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-1 flex justify-between">
+                              {n.sender} <span className="text-slate-600 font-mono">{new Date(n.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
                             </p>
-                            <p className="text-sm font-medium text-slate-200 leading-snug">{n.message}</p>
+                            <p className="text-xs font-medium text-slate-200 leading-snug">{n.message}</p>
                           </div>
                         ))
                       )}
@@ -281,86 +308,105 @@ const ExpertDashboard = () => {
         <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar">
           <AnimatePresence mode="wait">
             
-            {/* OVERVIEW TAB */}
+            {/* --- OVERVIEW --- */}
             {activeTab === 'overview' && (
               <motion.div key="overview" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="space-y-8 max-w-6xl mx-auto">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {[
-                    { label: "Pending Reviews", value: "14", color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
-                    { label: "Average Match", value: "92%", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
-                    { label: "Hours Synced", value: "128", color: "text-purple-400", bg: "bg-purple-500/10", border: "border-purple-500/20" }
-                  ].map((stat, i) => (
-                    <div key={i} className={`p-6 rounded-[2.5rem] border ${stat.border} ${stat.bg} backdrop-blur-md relative overflow-hidden group hover:-translate-y-1 transition-transform`}>
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">{stat.label}</p>
-                      <h3 className={`text-5xl font-black ${stat.color}`}>{stat.value}</h3>
-                      <div className="absolute -right-6 -bottom-6 opacity-10 group-hover:scale-110 transition-transform"><Activity size={100} /></div>
+                  {[{ label: "Pending Reviews", val: "14", col: "text-blue-400" }, { label: "Average Match", val: "92%", col: "text-emerald-400" }, { label: "Hours Synced", val: "128", col: "text-purple-400" }].map((s, i) => (
+                    <div key={i} className="p-6 rounded-[2.5rem] border border-white/10 bg-white/5 relative overflow-hidden group hover:-translate-y-1 transition-transform">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">{s.label}</p>
+                      <h3 className={`text-5xl font-black ${s.col}`}>{s.val}</h3>
                     </div>
                   ))}
                 </div>
 
-                <div className="bg-gradient-to-r from-cyan-900/40 to-blue-900/40 border border-cyan-500/30 p-8 rounded-[2.5rem] flex flex-col md:flex-row items-start md:items-center justify-between backdrop-blur-xl gap-6 shadow-2xl">
+                <div className="bg-gradient-to-r from-cyan-900/40 to-blue-900/40 border border-cyan-500/30 p-8 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between shadow-2xl gap-6">
                   <div>
-                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-widest rounded-full mb-4"><Clock size={12} /> Priority Queue</div>
-                    <h2 className="text-2xl md:text-3xl font-black uppercase tracking-widest mb-2">Bhaskar Tiwari is waiting</h2>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-widest rounded-full mb-4"><Clock size={12} /> Priority Node</div>
+                    <h2 className="text-2xl md:text-3xl font-black uppercase tracking-widest">Bhaskar Tiwari is waiting</h2>
                     <p className="text-sm text-cyan-100/70 font-medium">Neural match score: 94% | Domain: AI/ML</p>
                   </div>
-                  <button onClick={() => handleJoinSync("Bhaskar Tiwari")} className="w-full md:w-auto px-8 py-5 bg-cyan-500 hover:bg-cyan-400 text-black font-black uppercase tracking-widest text-sm rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-95 shrink-0 shadow-[0_0_20px_rgba(6,182,212,0.4)]">
+                  <button onClick={() => handleJoinSync("Bhaskar Tiwari")} className="w-full md:w-auto px-8 py-5 bg-cyan-500 hover:bg-cyan-400 text-black font-black uppercase tracking-widest text-sm rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-[0_0_30px_rgba(6,182,212,0.4)]">
                     <Video size={18} /> Initialize Sync
                   </button>
                 </div>
               </motion.div>
             )}
 
-            {/* QUEUE TAB */}
+            {/* --- LIVE QUEUE --- */}
             {activeTab === 'queue' && (
-              <motion.div key="queue" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="max-w-6xl mx-auto">
-                <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-                  <h2 className="text-xl font-black uppercase tracking-widest text-cyan-400">Live Assessment Queue</h2>
-                  <span className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest w-fit">{queue.length} Nodes Active</span>
+              <motion.div key="queue" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="max-w-6xl mx-auto space-y-4">
+                <div className="flex justify-between items-center mb-8">
+                  <h2 className="text-xl font-black uppercase tracking-widest text-cyan-400">Assessment Stream</h2>
+                  <span className="px-4 py-2 bg-white/5 border border-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest">{queue.length} Nodes Active</span>
                 </div>
-
                 {loadingQueue ? (
-                   <div className="flex justify-center py-20"><div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" /></div>
+                  <div className="flex justify-center py-20"><div className="w-12 h-12 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" /></div>
                 ) : (
-                  <div className="space-y-4">
-                    {queue.map((candidate) => (
-                      <div key={candidate.id} className="bg-black/40 border border-white/10 p-6 rounded-[2.5rem] flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-white/[0.02] transition-colors group">
-                        <div className="flex items-center gap-6">
-                          <div className="w-14 h-14 shrink-0 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/5 flex items-center justify-center shadow-inner font-black text-xl text-slate-500 group-hover:text-cyan-400 transition-colors">
-                            {candidate.name.charAt(0)}
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-black tracking-wider uppercase">{candidate.name}</h3>
-                            <p className="text-xs text-slate-400 uppercase tracking-widest font-bold mt-1">Domain: <span className="text-white">{candidate.domain}</span></p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto">
-                          {/* RESUME VIEWER FOR EXPERT */}
-                          {candidate.resumeId ? (
-                            <button onClick={() => handleViewResume(candidate.resumeId)} className="px-4 py-2.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-black border border-emerald-500/30 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2">
-                              <FileText size={14} /> View Resume
-                            </button>
-                          ) : (
-                            <span className="text-[9px] text-slate-600 font-bold uppercase italic px-2 tracking-widest">No Resume Uploaded</span>
-                          )}
-
-                          <div className="text-left md:text-center min-w-[80px]">
-                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Match</p>
-                            <span className="text-xl font-black text-emerald-400">{candidate.matchScore}%</span>
-                          </div>
-                          <button onClick={() => handleJoinSync(candidate.name)} className="px-6 py-3 bg-cyan-500/10 hover:bg-cyan-500 text-cyan-400 hover:text-black border border-cyan-500/30 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 whitespace-nowrap shadow-lg">
-                            <Video size={14} /> Join Now
-                          </button>
+                  queue.map((candidate) => (
+                    <div key={candidate.id} className="bg-black/40 border border-white/10 p-6 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-6 hover:bg-white/[0.02] transition-colors group">
+                      <div className="flex items-center gap-6">
+                        <div className="w-14 h-14 rounded-2xl bg-slate-800 flex items-center justify-center font-black text-xl text-slate-500 group-hover:text-cyan-400 transition-colors">{candidate.name.charAt(0)}</div>
+                        <div>
+                          <h3 className="text-lg font-black tracking-wider uppercase text-white">{candidate.name}</h3>
+                          <p className="text-xs text-slate-400 uppercase font-bold mt-1">Expert Domain: {candidate.domain}</p>
                         </div>
                       </div>
-                    ))}
-                  </div>
+
+                      <div className="flex flex-wrap items-center justify-center md:justify-end gap-4 w-full md:w-auto">
+                        {candidate.resumeId ? (
+                          <button onClick={() => handleViewResume(candidate.resumeId)} className="px-4 py-2.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-black border border-emerald-500/30 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2">
+                            <FileText size={14} /> View Resume
+                          </button>
+                        ) : (
+                          <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest italic px-2">No Resume Node</span>
+                        )}
+                        <div className="text-center min-w-[80px]">
+                          <p className="text-[10px] font-black text-slate-500 uppercase mb-1">Match</p>
+                          <span className="text-xl font-black text-emerald-400">{candidate.matchScore}%</span>
+                        </div>
+                        <button onClick={() => handleJoinSync(candidate.name)} className="px-6 py-3 bg-cyan-500/10 hover:bg-cyan-500 text-cyan-400 hover:text-black border border-cyan-500/30 rounded-xl font-black text-[10px] uppercase transition-all flex items-center gap-2 shadow-lg"><Video size={14} /> Join Now</button>
+                      </div>
+                    </div>
+                  ))
                 )}
               </motion.div>
             )}
 
-            {/* ASSESSMENTS TAB */}
+            {/* --- AVAILABILITY / SCHEDULE MANAGER --- */}
+            {activeTab === 'schedule' && (
+              <motion.div key="schedule" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="max-w-4xl mx-auto space-y-8">
+                <h2 className="text-xl font-black uppercase text-cyan-400">Node Availability Manager</h2>
+                <div className="space-y-4">
+                  {expertSchedules.length === 0 ? (
+                    <div className="text-center p-20 bg-white/5 rounded-[2.5rem] border border-dashed border-white/10 text-slate-600 font-black uppercase text-xs tracking-widest">No active slot requests.</div>
+                  ) : expertSchedules.map(s => (
+                    <div key={s._id} className="bg-black/40 border border-white/10 p-6 rounded-[2.5rem] flex flex-col md:flex-row justify-between gap-6 hover:bg-white/[0.02] transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center font-black text-slate-500">{s.candidate.charAt(0)}</div>
+                        <div>
+                          <p className="font-bold text-white uppercase tracking-wider">{s.candidate}</p>
+                          <p className="text-[10px] text-cyan-400 font-mono mt-1 bg-cyan-500/10 px-2 py-0.5 rounded uppercase font-bold w-fit">{new Date(s.dateTime).toLocaleString()}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {s.status === 'Pending' ? (
+                          <>
+                            <button onClick={() => handleScheduleResponse(s._id, s.dateTime, 'Confirmed')} className="px-6 py-3 bg-emerald-500 text-black font-black text-[10px] uppercase rounded-xl hover:bg-emerald-400 transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)]">Accept Slot</button>
+                            <input type="datetime-local" className="bg-black/40 border border-white/10 p-3 rounded-xl text-xs text-white outline-none focus:border-cyan-500" onChange={(e) => s.newTime = e.target.value} />
+                            <button onClick={() => handleScheduleResponse(s._id, s.newTime, 'Pending')} className="px-6 py-3 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-black text-[10px] uppercase rounded-xl hover:bg-cyan-500 hover:text-black transition-all">Counter</button>
+                          </>
+                        ) : (
+                          <span className="text-emerald-400 text-[10px] font-black uppercase border border-emerald-500/30 px-6 py-3 rounded-xl bg-emerald-500/5 flex items-center gap-2"><CheckCircle2 size={14} /> Sync Confirmed</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* --- ASSESSMENTS --- */}
             {activeTab === 'assessments' && (
               <motion.div key="assessments" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="max-w-6xl mx-auto">
                 <div className="mb-8">
@@ -371,23 +417,23 @@ const ExpertDashboard = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-md shadow-2xl">
                     <ClipboardCheck className="text-cyan-400 mb-6" size={32} />
-                    <h3 className="text-lg font-black uppercase tracking-widest mb-6">Log Assessment</h3>
+                    <h3 className="text-lg font-black uppercase tracking-widest mb-6 text-white">Log Assessment</h3>
                     <form className="space-y-6" onSubmit={submitScore}>
                       <div>
                         <label className="block text-slate-500 text-[10px] font-black mb-2 uppercase tracking-widest ml-1">Candidate Identity</label>
-                        <input type="text" placeholder="e.g. Bhaskar Tiwari" value={evaluation.candidateName} className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-sm font-medium outline-none focus:border-cyan-500/50 transition-all text-white" onChange={(e) => setEvaluation({...evaluation, candidateName: e.target.value})} />
+                        <input type="text" placeholder="e.g. Bhaskar Tiwari" value={evaluation.candidateName} onChange={e=>setEvaluation({...evaluation, candidateName: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-sm font-medium outline-none focus:border-cyan-500/50 transition-all text-white" />
                       </div>
                       <div>
                         <div className="flex justify-between items-end mb-2 ml-1">
                           <label className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Relevance Score</label>
                           <span className="text-3xl font-black text-cyan-400">{evaluation.score}</span>
                         </div>
-                        <input type="range" min="0" max="10" step="0.1" value={evaluation.score} className="w-full accent-cyan-400 cursor-pointer h-2 bg-white/10 rounded-lg appearance-none mt-2" onChange={(e) => setEvaluation({...evaluation, score: e.target.value})} />
+                        <input type="range" min="0" max="10" step="0.1" value={evaluation.score} onChange={e=>setEvaluation({...evaluation, score: e.target.value})} className="w-full accent-cyan-400 cursor-pointer h-2 bg-white/10 rounded-lg appearance-none mt-2" />
                         <div className="flex justify-between text-[10px] text-slate-500 mt-3 font-black tracking-widest uppercase"><span>0 (Low)</span><span>10 (High)</span></div>
                       </div>
                       <div>
                         <label className="block text-slate-500 text-[10px] font-black mb-2 uppercase tracking-widest ml-1">Detailed Remarks</label>
-                        <textarea placeholder="Enter technical feedback..." value={evaluation.remarks} onChange={(e) => setEvaluation({...evaluation, remarks: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-sm font-medium outline-none focus:border-cyan-500/50 transition-all min-h-[100px] resize-y custom-scrollbar text-white shadow-inner" />
+                        <textarea placeholder="Enter technical feedback..." value={evaluation.remarks} onChange={e=>setEvaluation({...evaluation, remarks: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-sm font-medium outline-none focus:border-cyan-500/50 transition-all min-h-[100px] resize-y custom-scrollbar text-white shadow-inner" />
                       </div>
                       <button type="submit" disabled={evalLoading} className="w-full py-4 mt-6 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 text-white font-black text-xs tracking-[0.2em] uppercase rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-cyan-900/20 transition-all active:scale-[0.98]">{evalLoading ? "ENCRYPTING..." : "SUBMIT ANALYSIS"} <Send size={16} /></button>
                       {submitStatus.message && ( <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`text-center text-xs tracking-widest font-bold mt-4 uppercase ${submitStatus.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>{submitStatus.message}</motion.p> )}
@@ -407,8 +453,8 @@ const ExpertDashboard = () => {
               </motion.div>
             )}
 
-            {/* PLACEHOLDERS FOR OTHER TABS */}
-            {(activeTab === 'schedule' || activeTab === 'settings') && (
+            {/* SETTINGS / OFFLINE TABS */}
+            {activeTab === 'settings' && (
               <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-[50vh] flex flex-col items-center justify-center text-center max-w-md mx-auto">
                 <Settings size={48} className="text-slate-700 mb-6 animate-spin-slow" />
                 <h2 className="text-xl font-black uppercase tracking-widest text-slate-500 mb-2">Module Offline</h2>

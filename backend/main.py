@@ -53,10 +53,11 @@ users_col = db['users']
 interviews_col = db['interviews']
 vault_col = db['vault']             # Metadata for general supporting files
 assessments_col = db['assessments'] # Stores technical evaluation scores
-resumes_col = db['resumes']         # Specifically for Primary Candidate Resumes
-notifications_col = db['notifications'] # System Alerts, Broadscasts, and Invites
+resumes_col = db['resumes']         # Primary Candidate Resumes
+notifications_col = db['notifications'] # System Alerts, Broadcasts, and Invites
+schedules_col = db['schedules']     # Candidate-Expert Appointment Handshakes
 
-# Initialize MongoDB GridFS Bucket (Stores binary file data in the DB)
+# Initialize MongoDB GridFS Bucket (Stores binary file data directly in the DB)
 fs = GridFS(db)
 
 
@@ -69,7 +70,7 @@ def index():
     return jsonify({
         "status": "Success", 
         "message": "Nexus RAC Flask Backend Running!",
-        "version": "3.5.0 (Full Integration)"
+        "version": "4.0.0 (Ultimate Integration)"
     })
 
 
@@ -161,6 +162,7 @@ def get_notifications(username):
         nots = list(notifications_col.find({
             "$or": [{"recipient": username}, {"recipient": "ALL"}]
         }).sort("createdAt", -1).limit(20))
+        
         for n in nots:
             n["_id"] = str(n["_id"])
         return jsonify(nots)
@@ -179,7 +181,55 @@ def mark_notification_read(notif_id):
 
 
 # ==========================================
-# 5. GRIDFS VAULT & RESUME MANAGEMENT
+# 5. SCHEDULING HANDSHAKE ROUTES
+# ==========================================
+
+@app.route('/api/schedules/<username>', methods=['GET'])
+def get_schedules(username):
+    """Fetch Proposed Slots: Returns appointments involving the specific node"""
+    try:
+        user_schedules = list(schedules_col.find({
+            "$or": [{"candidate": username}, {"expert": username}]
+        }).sort("timestamp", -1))
+        for s in user_schedules:
+            s["_id"] = str(s["_id"])
+        return jsonify(user_schedules)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/schedules', methods=['POST'])
+def handle_schedule():
+    """Handshake Logic: Handles new slot proposals, counter-offers, and confirmations"""
+    try:
+        data = request.json
+        # If it's an update to an existing schedule (Accepting/Countering)
+        if "id" in data:
+            schedules_col.update_one(
+                {"_id": ObjectId(data["id"])},
+                {"$set": {
+                    "dateTime": data["dateTime"],
+                    "status": data["status"], # 'Confirmed', 'Pending'
+                    "lastModifiedBy": data["sender"]
+                }}
+            )
+        else:
+            # Create a brand new request from the candidate or expert
+            schedules_col.insert_one({
+                "candidate": data["candidate"],
+                "expert": data["expert"],
+                "dateTime": data["dateTime"], # ISO string format
+                "status": "Pending",
+                "proposedBy": data["sender"],
+                "timestamp": datetime.utcnow()
+            })
+        return jsonify({"status": "Success"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ==========================================
+# 6. GRIDFS VAULT & RESUME MANAGEMENT
 # ==========================================
 
 @app.route('/api/upload_resume', methods=['POST'])
@@ -242,6 +292,7 @@ def upload_file():
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             file.seek(0, os.SEEK_END); file_length = file.tell(); file.seek(0)
+            
             file_id = fs.put(file, filename=filename, metadata={"username": username}, content_type=file.content_type)
 
             vault_col.insert_one({
@@ -279,7 +330,7 @@ def view_file(file_id):
             as_attachment=False
         )
     except Exception as e:
-        return jsonify({"error": "File not found or corrupted."}), 404
+        return jsonify({"error": "File not found or corrupted. May be a legacy file."}), 404
 
 
 @app.route('/api/vault/delete/<file_id>', methods=['DELETE'])
@@ -295,10 +346,9 @@ def delete_file(file_id):
 
 
 # ==========================================
-# 6. EXPERT & AI MATCHING ENGINE
+# 7. EXPERT & AI MATCHING ENGINE
 # ==========================================
 
-# --- EXPERT HELPER: GET CANDIDATE'S PRIMARY RESUME ---
 @app.route('/api/expert/get_resume/<candidate_name>', methods=['GET'])
 def expert_get_candidate_resume(candidate_name):
     """Expert Sync Helper: Retrieves the current resume ID for a candidate in the queue"""
@@ -320,10 +370,18 @@ def match_expert():
     """Neural Engine: Calculates cosine similarity between candidate skills and expert profiles"""
     data = request.get_json()
     candidate_skills = data.get('skills', '')
-    if not candidate_skills or candidate_skills.strip() == "": return jsonify({"error": "Skills required"}), 400
+    
+    if not candidate_skills or candidate_skills.strip() == "": 
+        return jsonify({"error": "Profile skills are required for AI matching"}), 400
+        
     try:
+        latest_board = interviews_col.find_one({"status": "Live"}, sort=[("createdAt", -1)])
+        board_subject = latest_board["boardSubject"] if latest_board else None
+
         experts_data = list(experts_col.find({}, {'_id': 0}))
-        if not experts_data: return jsonify([]), 404
+        if not experts_data: 
+            return jsonify([]), 404
+
         experts_df = pd.DataFrame(experts_data)
         clean_candidate = preprocess_text(candidate_skills)
         
@@ -341,9 +399,12 @@ def match_expert():
             score = row['relevance_score']
             if 10.0 <= score <= 100.0:
                 results.append({
-                    "id": int(index), "expert_name": str(row[name_col]),
-                    "domain": str(row[sub_col]), "score": float(score)
+                    "id": int(index), 
+                    "expert_name": str(row[name_col]),
+                    "domain": str(row[sub_col]), 
+                    "score": float(score)
                 })
+                
         results = sorted(results, key=lambda x: x['score'], reverse=True)
         return jsonify(results)
     except Exception as e:
@@ -355,6 +416,7 @@ def audit_profile():
     """AI Auditor: Generates logic-based feedback for technical profiles"""
     data = request.json
     skills = data.get('skills', '').lower()
+    
     feedback = "Your profile is strong in technical implementation. "
     if "python" in skills or "ai" in skills:
         feedback += "Consider adding frameworks like PyTorch or TensorFlow to increase relevance."
@@ -362,11 +424,12 @@ def audit_profile():
         feedback += "Focus on Advanced Design Patterns to reach Senior Expert levels."
     else:
         feedback += "Expand your Skill Vector with core industry technologies."
+        
     return jsonify({"feedback": feedback})
 
 
 # ==========================================
-# 7. BOARD & ASSESSMENT LOGGING
+# 8. BOARD & ASSESSMENT LOGGING
 # ==========================================
 
 @app.route('/api/create_board', methods=['POST'])
@@ -374,8 +437,12 @@ def create_board():
     """Root Authority: Defines a new interview board subject and date"""
     data = request.get_json()
     interviews_col.insert_one({
-        "boardSubject": data['subject'], "boardDate": data['date'], "status": "Live",
-        "assignedExpert": "Pending Match", "candidateName": "Not Assigned", "createdAt": datetime.utcnow()
+        "boardSubject": data['subject'], 
+        "boardDate": data['date'], 
+        "status": "Live",
+        "assignedExpert": "Pending Match", 
+        "candidateName": "Not Assigned", 
+        "createdAt": datetime.utcnow()
     })
     return jsonify({"status": "Success"})
 
@@ -386,8 +453,11 @@ def save_assessment():
     try:
         data = request.get_json()
         assessments_col.insert_one({
-            "expert_name": data.get('expert_name'), "candidate_name": data.get('candidate_name'),
-            "score": data.get('score'), "remarks": data.get('remarks', ''), "timestamp": datetime.utcnow()
+            "expert_name": data.get('expert_name'), 
+            "candidate_name": data.get('candidate_name'),
+            "score": data.get('score'), 
+            "remarks": data.get('remarks', ''), 
+            "timestamp": datetime.utcnow()
         })
         return jsonify({"status": "Success", "message": "Assessment recorded securely."})
     except Exception as e:
@@ -399,7 +469,9 @@ def get_candidate_assessment(candidate_name):
     """Official Transcript: Fetches the evaluation results for the logged-in candidate"""
     try:
         assessment = assessments_col.find_one(
-            {"candidate_name": candidate_name}, sort=[("timestamp", -1)], projection={"_id": 0}
+            {"candidate_name": candidate_name}, 
+            sort=[("timestamp", -1)], 
+            projection={"_id": 0}
         )
         if assessment:
             return jsonify({"status": "Success", "data": assessment})
@@ -409,7 +481,7 @@ def get_candidate_assessment(candidate_name):
 
 
 # ==========================================
-# 8. RUN ENGINE
+# 9. RUN ENGINE
 # ==========================================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
