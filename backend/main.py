@@ -53,7 +53,7 @@ users_col = db['users']
 interviews_col = db['interviews']
 vault_col = db['vault']             # Metadata for general supporting files
 assessments_col = db['assessments'] # Stores technical evaluation scores
-resumes_col = db['resumes']         # Primary Candidate Resumes
+resumes_col = db['resumes']         # Specifically for Primary Candidate Resumes
 notifications_col = db['notifications'] # System Alerts, Broadcasts, and Invites
 schedules_col = db['schedules']     # Candidate-Expert Appointment Handshakes
 
@@ -70,7 +70,7 @@ def index():
     return jsonify({
         "status": "Success", 
         "message": "Nexus RAC Flask Backend Running!",
-        "version": "4.0.0 (Ultimate Integration)"
+        "version": "4.5.0 (Full Integration)"
     })
 
 
@@ -139,7 +139,7 @@ def login_user():
 
 @app.route('/api/notifications', methods=['POST'])
 def send_notification():
-    """Global Signaling: Sends an alert to a specific node or 'ALL' nodes"""
+    """Global Signaling: Sends an alert to a specific node or 'ALL' nodes with Quick Links"""
     try:
         data = request.json
         notifications_col.insert_one({
@@ -147,6 +147,7 @@ def send_notification():
             "sender": data.get("sender", "System"),
             "message": data.get("message"),
             "type": data.get("type", "info"),
+            "actionTab": data.get("actionTab", "overview"), # Tells frontend where to redirect
             "read": False,
             "createdAt": datetime.utcnow()
         })

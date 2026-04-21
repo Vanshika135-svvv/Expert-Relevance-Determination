@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Users, Activity, Settings, LogOut, ChevronLeft, ChevronRight, 
-  ShieldCheck, BrainCircuit, Terminal, Send, BellRing, Database, Plus, Server
+  ShieldCheck, BrainCircuit, Terminal, Send, BellRing, Database, Plus, Server, Bell, ArrowRight
 } from 'lucide-react';
 import axios from 'axios';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const notifRef = useRef(null); // Reference for click-outside
   
   // --- UI & Navigation States ---
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -20,52 +21,60 @@ const AdminDashboard = () => {
   const [isSending, setIsSending] = useState(false);
   const [sendState, setSendState] = useState('');
 
+  // --- NOTIFICATION STATES ---
+  const [notifications, setNotifications] = useState([]);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+
   // --- SYSTEM & BOARD STATES ---
   const [board, setBoard] = useState({ subject: '', date: '' });
   const [loadingBoard, setLoadingBoard] = useState(false);
-  const [stats, setStats] = useState({
-    status: 'Scanning...',
-    db_status: 'Checking...',
-    experts: 0,
-    candidates: 0
-  });
+  const [stats, setStats] = useState({ status: 'Scanning...', db_status: 'Checking...', experts: 0, candidates: 0 });
 
   const adminName = localStorage.getItem('username') || 'System Admin';
 
+  // --- CLICK OUTSIDE LOGIC ---
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notifRef.current && !notifRef.current.contains(event.target)) setIsNotifOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [notifRef]);
+
   // --- INITIALIZATION & POLLING ---
   useEffect(() => {
-    fetchDiagnostics();
-    const interval = setInterval(fetchDiagnostics, 30000); // Auto-refresh health every 30s
+    fetchDiagnostics(); 
+    fetchNotifications();
+    
+    // Poll every 15 seconds
+    const interval = setInterval(() => { 
+      fetchDiagnostics(); 
+      fetchNotifications(); 
+    }, 15000); 
     return () => clearInterval(interval);
   }, []);
 
-  const handleLogout = () => {
-    localStorage.clear();
-    navigate('/login');
+  const handleLogout = () => { 
+    localStorage.clear(); 
+    navigate('/login'); 
   };
 
-  // --- 1. SYSTEM DIAGNOSTICS LOGIC ---
+  // --- DIAGNOSTICS LOGIC ---
   const fetchDiagnostics = async () => {
     try {
       const response = await axios.get('http://localhost:5000/api/health_check');
       setStats(response.data);
     } catch (error) {
-      setStats({
-        status: 'Critical',
-        db_status: 'Disconnected',
-        experts: 0,
-        candidates: 0
-      });
+      setStats({ status: 'Critical', db_status: 'Disconnected', experts: 0, candidates: 0 });
     }
   };
 
-  // --- 2. BOARD INITIALIZATION LOGIC ---
+  // --- BOARD INITIALIZATION LOGIC ---
   const createBoard = async () => {
     if (!board.subject || !board.date) {
       alert("Please define Board Subject and Date.");
       return;
     }
-
     setLoadingBoard(true);
     try {
       await axios.post('http://localhost:5000/api/create_board', {
@@ -81,54 +90,59 @@ const AdminDashboard = () => {
     }
   };
 
-  // --- 3. SEND NOTIFICATION TO MATRIX LOGIC ---
+  // --- NOTIFICATION & MATRIX LOGIC ---
+  const fetchNotifications = async () => {
+    try {
+      const res = await axios.get(`http://localhost:5000/api/notifications/${encodeURIComponent(adminName)}`);
+      setNotifications(res.data);
+    } catch (err) {}
+  };
+
+  const markNotificationRead = async (id) => {
+    try { 
+      await axios.put(`http://localhost:5000/api/notifications/read/${id}`); 
+      fetchNotifications(); 
+    } catch(err){}
+  };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
   const handleBroadcast = async (e) => {
-    e.preventDefault();
+    e.preventDefault(); 
     if (!broadcastMessage) return;
-
-    setIsSending(true);
+    
+    setIsSending(true); 
     setSendState('');
-
+    
     try {
       await axios.post('http://localhost:5000/api/notifications', {
-        recipient: broadcastTarget, // 'ALL' triggers a system-wide blast
-        sender: `Admin: ${adminName}`,
-        message: broadcastMessage,
-        type: "alert"
+        recipient: broadcastTarget, 
+        sender: `Admin: ${adminName}`, 
+        message: broadcastMessage, 
+        type: "alert", 
+        actionTab: "overview" // Quick Link destination
       });
-      setSendState('Transmission successful.');
+      setSendState('Transmission successful.'); 
       setBroadcastMessage('');
-    } catch (err) {
-      setSendState('Transmission failed. Check database link.');
-    } finally {
-      setIsSending(false);
-      setTimeout(() => setSendState(''), 4000);
+    } catch (err) { 
+      setSendState('Transmission failed. Check database link.'); 
+    } finally { 
+      setIsSending(false); 
+      setTimeout(() => setSendState(''), 4000); 
     }
   };
 
-  // --- REUSABLE SIDEBAR COMPONENT ---
   const SidebarItem = ({ icon: Icon, label, id }) => (
-    <button 
-      onClick={() => setActiveTab(id)} 
-      className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all group ${
-        activeTab === id 
-          ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30 shadow-[0_0_20px_rgba(168,85,247,0.15)]' 
-          : 'text-slate-400 hover:bg-white/5 hover:text-white border border-transparent'
-      }`}
-    >
+    <button onClick={() => setActiveTab(id)} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all group ${activeTab === id ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 'text-slate-400 hover:bg-white/5'}`}>
       <Icon size={20} className={activeTab === id ? 'animate-pulse' : 'group-hover:scale-110 transition-transform'} />
       <AnimatePresence>
-        {isSidebarOpen && ( 
-          <motion.span initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: 'auto' }} exit={{ opacity: 0, width: 0 }} className="font-bold text-xs uppercase tracking-widest whitespace-nowrap overflow-hidden">
-            {label}
-          </motion.span> 
-        )}
+        {isSidebarOpen && ( <motion.span initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: 'auto' }} exit={{ opacity: 0, width: 0 }} className="font-bold text-xs uppercase tracking-widest whitespace-nowrap overflow-hidden">{label}</motion.span> )}
       </AnimatePresence>
     </button>
   );
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white flex overflow-hidden selection:bg-purple-500 selection:text-black font-sans">
+    <div className="min-h-screen bg-[#020617] text-white flex overflow-hidden selection:bg-purple-500 font-sans">
       
       {/* Background Glows */}
       <div className="absolute inset-0 -z-10 pointer-events-none">
@@ -138,57 +152,82 @@ const AdminDashboard = () => {
 
       {/* --- SIDEBAR --- */}
       <motion.aside animate={{ width: isSidebarOpen ? 280 : 100 }} className="h-screen bg-black/40 backdrop-blur-2xl border-r border-white/10 flex flex-col p-6 relative z-20 shrink-0">
-        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="absolute -right-4 top-10 w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center cursor-pointer hover:scale-110 transition-transform shadow-[0_0_15px_rgba(168,85,247,0.5)]">
-          {isSidebarOpen ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="absolute -right-4 top-10 w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center cursor-pointer shadow-[0_0_15px_rgba(168,85,247,0.5)]">
+          <ChevronLeft size={16} className={!isSidebarOpen && 'rotate-180'}/>
         </button>
-
+        
         <div className="flex items-center gap-3 mb-12">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-blue-600 p-0.5 shrink-0">
-            <div className="w-full h-full bg-[#020617] rounded-full flex items-center justify-center"><Terminal className="text-purple-400" size={24} /></div>
+          <div className="w-12 h-12 rounded-full bg-purple-500 p-0.5 shrink-0">
+            <div className="w-full h-full bg-[#020617] rounded-full flex items-center justify-center">
+              <Terminal className="text-purple-400" size={24} />
+            </div>
           </div>
-          <AnimatePresence>
-            {isSidebarOpen && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="overflow-hidden whitespace-nowrap">
-                <h2 className="text-sm font-black tracking-widest uppercase">Nexus Command</h2>
-                <p className="text-[9px] text-purple-500 font-bold tracking-[0.2em] uppercase">Root Admin</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {isSidebarOpen && <h2 className="text-sm font-black uppercase">Root Admin</h2>}
         </div>
-
+        
         <nav className="flex-1 space-y-3">
           <SidebarItem icon={Activity} label="System Status" id="overview" />
           <SidebarItem icon={BellRing} label="Broadcast Node" id="broadcast" />
           <SidebarItem icon={Database} label="Vault Analytics" id="database" />
           <SidebarItem icon={Users} label="User Roles" id="users" />
         </nav>
-
-        <button onClick={handleLogout} className="w-full flex items-center gap-4 p-4 rounded-2xl text-red-400 hover:bg-red-500/10 hover:border-red-500/30 border border-transparent transition-all group mt-4 shrink-0">
-          <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
-          <AnimatePresence>
-            {isSidebarOpen && <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="font-bold text-xs uppercase tracking-widest whitespace-nowrap overflow-hidden">Sever Root Link</motion.span>}
-          </AnimatePresence>
+        
+        <button onClick={handleLogout} className="w-full flex items-center gap-4 p-4 text-red-400 hover:bg-red-500/10 rounded-2xl shrink-0">
+          <LogOut size={20} />
+          {isSidebarOpen && <span className="font-bold text-xs uppercase tracking-widest">Sever Link</span>}
         </button>
       </motion.aside>
 
       {/* --- MAIN CONTENT AREA --- */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
         
-        {/* Topbar */}
-        <header className="h-24 px-6 md:px-10 flex items-center justify-between border-b border-white/5 bg-white/[0.02] backdrop-blur-md shrink-0">
-          <div>
-            <h1 className="text-xl md:text-2xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-500">Root: {adminName}</h1>
-            <p className="text-xs text-slate-400 font-mono mt-1 flex items-center gap-2">
-              Status: <span className="text-purple-400 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span> Override Active</span>
-            </p>
-          </div>
-          <div className="w-10 h-10 rounded-full bg-purple-500/20 border border-purple-500/40 flex items-center justify-center animate-pulse shrink-0">
-            <ShieldCheck className="text-purple-400" size={18} />
+        {/* Topbar: RELATIVE Z-50 FIX */}
+        <header className="relative z-50 h-24 px-10 flex items-center justify-between border-b border-white/5 bg-white/[0.02] backdrop-blur-md">
+          <h1 className="text-2xl font-black uppercase text-white">Root: {adminName}</h1>
+          <div className="flex items-center gap-6">
+            
+            {/* NOTIFICATION WIDGET W/ CLICK OUTSIDE */}
+            <div className="relative" ref={notifRef}>
+              <button onClick={() => setIsNotifOpen(!isNotifOpen)} className="relative p-3 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 group">
+                <Bell size={18} className="text-slate-300 group-hover:text-purple-400" />
+                {unreadCount > 0 && <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-red-500 rounded-full animate-pulse flex items-center justify-center text-[7px] font-bold text-white">{unreadCount}</span>}
+              </button>
+              
+              <AnimatePresence>
+                {isNotifOpen && (
+                  <motion.div initial={{opacity:0, y:10}} animate={{opacity:1,y:0}} exit={{opacity:0,y:10}} className="absolute right-0 mt-4 w-80 bg-[#0B1021]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden">
+                    <div className="p-4 border-b border-white/10 flex justify-between items-center">
+                      <h3 className="text-[10px] font-black uppercase text-white">Alerts</h3>
+                      <span className="text-[9px] bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded font-bold">{unreadCount} New</span>
+                    </div>
+                    <div className="max-h-80 overflow-y-auto p-2">
+                      {notifications.length === 0 ? (
+                        <div className="p-8 text-center text-slate-500 text-[10px] font-black uppercase">No signals detected.</div>
+                      ) : notifications.map(n => (
+                        <div key={n._id} className={`p-4 rounded-xl ${n.read ? 'opacity-50' : 'bg-purple-500/10 border border-purple-500/20'}`}>
+                          <p className="text-[9px] text-slate-400 font-bold uppercase mb-1 flex justify-between">
+                            {n.sender} <span>{new Date(n.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                          </p>
+                          <p className="text-xs font-medium text-slate-200 mb-3">{n.message}</p>
+                          <div className="flex gap-2">
+                            <button onClick={() => { setActiveTab(n.actionTab || 'overview'); setIsNotifOpen(false); }} className="text-[9px] font-black uppercase bg-white/10 px-3 py-1 rounded hover:bg-white/20 transition-all flex items-center gap-1">
+                              View <ArrowRight size={10}/>
+                            </button>
+                            {!n.read && <button onClick={() => markNotificationRead(n._id)} className="text-[9px] font-black uppercase text-purple-400 hover:text-purple-300">Mark Read</button>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-purple-500/20 border border-purple-500/40 flex items-center justify-center animate-pulse"><ShieldCheck className="text-purple-400" size={18} /></div>
           </div>
         </header>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
           <AnimatePresence mode="wait">
             
             {/* OVERVIEW TAB: SYSTEM STATUS & BOARD INITIALIZATION */}
@@ -289,7 +328,7 @@ const AdminDashboard = () => {
               </motion.div>
             )}
 
-            {/* BROADCAST TAB: SEND SYSTEM NOTIFICATIONS */}
+            {/* BROADCAST TAB */}
             {activeTab === 'broadcast' && (
               <motion.div key="broadcast" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="max-w-4xl mx-auto mt-10">
                 <div className="mb-8 text-center">
@@ -297,46 +336,33 @@ const AdminDashboard = () => {
                   <h2 className="text-3xl font-black uppercase tracking-widest text-white">Command Broadcast</h2>
                   <p className="text-sm text-slate-400 font-medium mt-2">Transmit overriding alerts to the global Notification Matrix or specific nodes.</p>
                 </div>
-
-                <form onSubmit={handleBroadcast} className="bg-white/5 border border-white/10 p-8 md:p-12 rounded-[3rem] backdrop-blur-md shadow-2xl">
-                  
+                
+                <form onSubmit={handleBroadcast} className="bg-white/5 border border-white/10 p-12 rounded-[3rem] shadow-2xl">
                   <div className="mb-8">
-                    <label className="block text-slate-500 text-[10px] font-black mb-3 uppercase tracking-widest ml-2">Target Node Identity</label>
-                    <div className="relative">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                      <input 
-                        type="text" 
-                        value={broadcastTarget}
-                        onChange={(e) => setBroadcastTarget(e.target.value)}
-                        placeholder="Type 'ALL' for global broadcast, or specific username..." 
-                        className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 pl-12 pr-6 text-sm outline-none focus:border-purple-500/50 transition-all font-medium text-white shadow-inner uppercase tracking-wider"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mb-8">
-                    <label className="block text-slate-500 text-[10px] font-black mb-3 uppercase tracking-widest ml-2">Transmission Data</label>
-                    <textarea 
-                      value={broadcastMessage}
-                      onChange={(e) => setBroadcastMessage(e.target.value)}
-                      placeholder="Enter system alert or interview override notification here..." 
-                      className="w-full bg-black/40 border border-white/10 rounded-2xl p-6 text-sm outline-none focus:border-purple-500/50 transition-all font-medium text-white shadow-inner min-h-[150px] resize-y custom-scrollbar"
+                    <label className="block text-[10px] font-black mb-3 uppercase text-slate-500">Target Node (Type 'ALL' or Username)</label>
+                    <input 
+                      type="text" 
+                      value={broadcastTarget} 
+                      onChange={(e) => setBroadcastTarget(e.target.value)} 
+                      className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 px-6 text-sm outline-none focus:border-purple-500/50 transition-colors" 
                     />
                   </div>
-
+                  <div className="mb-8">
+                    <label className="block text-[10px] font-black mb-3 uppercase text-slate-500">Transmission Data</label>
+                    <textarea 
+                      value={broadcastMessage} 
+                      onChange={(e) => setBroadcastMessage(e.target.value)} 
+                      className="w-full bg-black/40 border border-white/10 rounded-2xl p-6 text-sm outline-none focus:border-purple-500/50 min-h-[150px] transition-colors" 
+                    />
+                  </div>
                   <button 
                     type="submit" 
-                    disabled={!broadcastMessage || isSending}
-                    className="w-full py-5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:opacity-50 text-white font-black text-xs tracking-[0.3em] uppercase rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-purple-900/40 transition-all active:scale-[0.98]"
+                    disabled={!broadcastMessage || isSending} 
+                    className="w-full py-5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:opacity-50 text-white font-black text-xs tracking-[0.3em] uppercase rounded-2xl shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all active:scale-[0.98]"
                   >
-                    {isSending ? "TRANSMITTING..." : "FIRE BROADCAST"} <Send size={16} />
+                    {isSending ? "TRANSMITTING..." : "FIRE BROADCAST"}
                   </button>
-
-                  {sendState && (
-                    <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`text-center text-xs tracking-widest font-bold mt-6 uppercase ${sendState.includes('failed') ? 'text-red-400' : 'text-emerald-400'}`}>
-                      {sendState}
-                    </motion.p>
-                  )}
+                  {sendState && <p className={`text-center text-xs font-black uppercase tracking-widest mt-6 ${sendState.includes('failed') ? 'text-red-400' : 'text-emerald-400'}`}>{sendState}</p>}
                 </form>
               </motion.div>
             )}
@@ -353,7 +379,6 @@ const AdminDashboard = () => {
           </AnimatePresence>
         </div>
       </main>
-
     </div>
   );
 };
