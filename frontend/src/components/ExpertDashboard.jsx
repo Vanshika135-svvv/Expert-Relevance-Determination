@@ -98,11 +98,9 @@ const ExpertDashboard = () => {
   // ==========================================
   useEffect(() => {
     const handleClickOutside = (event) => {
-      // Close notifications if clicked outside
       if (notifRef.current && !notifRef.current.contains(event.target)) {
         setIsNotifOpen(false);
       }
-      // Close search if clicked outside
       if (searchRef.current && !searchRef.current.contains(event.target)) {
         setIsSearchOpen(false);
       }
@@ -159,7 +157,7 @@ const ExpertDashboard = () => {
     }, 10000);
     
     return () => clearInterval(interval);
-  }, [expertName]); // Dependency array updated
+  }, [expertName]);
 
   // ==========================================
   // AUTOMATED 15-MINUTE REMINDER LOGIC
@@ -192,7 +190,7 @@ const ExpertDashboard = () => {
           }
         }
       });
-    }, 60000); // Check the clock every 1 minute
+    }, 60000); 
     
     return () => clearInterval(reminderInterval);
   }, [expertSchedules, expertName]);
@@ -637,7 +635,7 @@ const ExpertDashboard = () => {
               </AnimatePresence>
             </div>
 
-            {/* --- QUERY NETWORK SEARCH WIDGET --- */}
+            {/* --- NETWORK QUERY SEARCH WIDGET --- */}
             <div className="relative group hidden lg:block" ref={searchRef}>
               <Search 
                 className={`absolute left-4 top-1/2 -translate-y-1/2 ${isSearchOpen ? 'text-cyan-400' : 'text-slate-500'} transition-colors`} 
@@ -707,7 +705,7 @@ const ExpertDashboard = () => {
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar">
           <AnimatePresence mode="wait">
-             
+            
             {/* OVERVIEW TAB */}
             {activeTab === 'overview' && (
               <motion.div 
@@ -715,136 +713,169 @@ const ExpertDashboard = () => {
                 initial={{ opacity: 0, y: 20 }} 
                 animate={{ opacity: 1, y: 0 }} 
                 exit={{ opacity: 0, y: -20 }} 
-                className="space-y-8 max-w-6xl mx-auto"
+                className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto"
               >
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {[
-                    { label: "Pending Reviews", val: "14", col: "text-blue-400" }, 
-                    { label: "Average Match", val: "92%", col: "text-emerald-400" }, 
-                    { label: "Hours Synced", val: "128", col: "text-purple-400" }
-                  ].map((s, i) => (
-                    <div 
-                      key={i} 
-                      className="p-6 rounded-[2.5rem] border border-white/10 bg-white/5 relative overflow-hidden group hover:-translate-y-1 transition-transform"
-                    >
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">
-                        {s.label}
+                <div className="lg:col-span-2 space-y-8">
+                  {/* Status Row */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white/5 border border-white/10 p-6 rounded-[2rem] backdrop-blur-md hover:-translate-y-1 transition-transform">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                        Pending Reviews
                       </p>
-                      <h3 className={`text-5xl font-black ${s.col}`}>
-                        {s.val}
-                      </h3>
+                      <p className="text-white font-bold text-5xl">
+                        14
+                      </p>
                     </div>
-                  ))}
-                </div>
-
-                {/* --- DYNAMIC PRIORITY NODE BANNER --- */}
-                <div className="bg-gradient-to-r from-cyan-900/40 to-blue-900/40 border border-cyan-500/30 p-8 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between shadow-2xl gap-6">
-                  
-                  {priorityNode && priorityNode.type === 'ACTIVE' ? (
-                    <>
-                      <div className="min-w-0 flex-1 pr-4">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-widest rounded-full mb-4">
-                          <Clock size={12} className="animate-pulse" /> Priority Node Ready
-                        </div>
-                        <h2 className="text-2xl md:text-3xl font-black uppercase tracking-widest mb-2 truncate">
-                          {priorityNode.data.candidate} is waiting
-                        </h2>
-                        <p className="text-sm text-cyan-100/70 font-medium truncate">
-                          Neural match score: {priorityCandidateDetails?.matchScore || 'N/A'}% | Domain: {priorityCandidateDetails?.domain || 'Specialist'}
-                        </p>
-                      </div>
-                      <button 
-                        onClick={() => handleJoinSync(priorityNode.data.candidate)} 
-                        className="w-full md:w-auto px-8 py-5 bg-cyan-500 hover:bg-cyan-400 text-black font-black uppercase tracking-widest text-sm rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-[0_0_30px_rgba(6,182,212,0.4)] shrink-0"
-                      >
-                        <Video size={18} /> Initialize Sync
-                      </button>
-                    </>
-                  ) : priorityNode && priorityNode.type === 'UPCOMING' ? (
-                    <>
-                      <div className="min-w-0 flex-1 pr-4">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-full mb-4">
-                          <Calendar size={12} /> Next Scheduled Sync
-                        </div>
-                        <h2 className="text-2xl md:text-3xl font-black uppercase tracking-widest mb-2 truncate">
-                          {priorityNode.data.candidate}
-                        </h2>
-                        <p className="text-sm text-blue-100/70 font-medium truncate">
-                          Scheduled for: {new Date(priorityNode.data.dateTime).toLocaleString()}
-                        </p>
-                      </div>
-                      <button 
-                        disabled
-                        className="w-full md:w-auto px-8 py-5 bg-slate-800 text-slate-500 border border-white/5 font-black uppercase tracking-widest text-sm rounded-2xl flex items-center justify-center gap-3 cursor-not-allowed shrink-0 transition-all"
-                      >
-                        <Clock size={18} /> Awaiting Time
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <div className="min-w-0 flex-1 pr-4">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-500/20 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-full mb-4">
-                          <Activity size={12} /> Matrix Standby
-                        </div>
-                        <h2 className="text-2xl md:text-3xl font-black uppercase tracking-widest mb-2 text-slate-500 truncate">
-                          No Pending Syncs
-                        </h2>
-                        <p className="text-sm text-slate-600 font-medium truncate">
-                          Queue is clear. Awaiting candidate schedule requests.
-                        </p>
-                      </div>
-                      <button 
-                        disabled
-                        className="w-full md:w-auto px-8 py-5 bg-black/40 text-slate-600 border border-white/5 font-black uppercase tracking-widest text-sm rounded-2xl flex items-center justify-center gap-3 cursor-not-allowed shrink-0"
-                      >
-                        <ShieldCheck size={18} /> Standby
-                      </button>
-                    </>
-                  )}
-                </div>
-
-                {/* --- ACTIVE INTERVIEW BOARDS --- */}
-                <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-md">
-                  <h2 className="text-xl font-black uppercase tracking-widest text-cyan-400 mb-6">
-                    Live Interview Boards
-                  </h2>
-                  
-                  {activeBoards.length === 0 ? (
-                    <div className="text-center p-10 border border-dashed border-white/10 rounded-2xl text-slate-500 font-bold uppercase text-xs tracking-widest">
-                      No active boards found.
+                    <div className="bg-white/5 border border-white/10 p-6 rounded-[2rem] backdrop-blur-md hover:-translate-y-1 transition-transform">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                        Average Match
+                      </p>
+                      <p className="text-emerald-400 font-bold text-5xl">
+                        92%
+                      </p>
                     </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {activeBoards.map(board => (
-                        <div 
-                          key={board._id} 
-                          className="bg-black/40 border border-white/5 p-6 rounded-[2rem] flex flex-col md:flex-row justify-between md:items-center gap-6 hover:border-blue-500/30 transition-colors group"
+                  </div>
+
+                  {/* --- DYNAMIC PRIORITY NODE BANNER --- */}
+                  <div className="bg-gradient-to-r from-cyan-900/40 to-blue-900/40 border border-cyan-500/30 p-8 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between shadow-2xl gap-6">
+                    
+                    {priorityNode && priorityNode.type === 'ACTIVE' ? (
+                      <>
+                        <div className="min-w-0 flex-1 pr-4">
+                          <div className="inline-flex items-center gap-2 px-3 py-1 bg-cyan-500/20 text-cyan-400 text-[10px] font-black uppercase tracking-widest rounded-full mb-4">
+                            <Clock size={12} className="animate-pulse" /> Priority Node Ready
+                          </div>
+                          <h2 className="text-2xl md:text-3xl font-black uppercase tracking-widest mb-2 truncate">
+                            {priorityNode.data.candidate} is waiting
+                          </h2>
+                          <p className="text-sm text-cyan-100/70 font-medium truncate">
+                            Neural match score: {priorityCandidateDetails?.matchScore || 'N/A'}% | Domain: {priorityCandidateDetails?.domain || 'Specialist'}
+                          </p>
+                        </div>
+                        <button 
+                          onClick={() => handleJoinSync(priorityNode.data.candidate)} 
+                          className="w-full md:w-auto px-8 py-5 bg-cyan-500 hover:bg-cyan-400 text-black font-black uppercase tracking-widest text-sm rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-[0_0_30px_rgba(6,182,212,0.4)] shrink-0"
                         >
-                          <div className="flex items-center gap-6 min-w-0 flex-1">
-                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/5 flex items-center justify-center shadow-inner shrink-0">
-                              <Video className="text-cyan-400" size={24} />
+                          <Video size={18} /> Initialize Sync
+                        </button>
+                      </>
+                    ) : priorityNode && priorityNode.type === 'UPCOMING' ? (
+                      <>
+                        <div className="min-w-0 flex-1 pr-4">
+                          <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/20 text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-full mb-4">
+                            <Calendar size={12} /> Next Scheduled Sync
+                          </div>
+                          <h2 className="text-2xl md:text-3xl font-black uppercase tracking-widest mb-2 truncate">
+                            {priorityNode.data.candidate}
+                          </h2>
+                          <p className="text-sm text-blue-100/70 font-medium truncate">
+                            Scheduled for: {new Date(priorityNode.data.dateTime).toLocaleString()}
+                          </p>
+                        </div>
+                        <button 
+                          disabled
+                          className="w-full md:w-auto px-8 py-5 bg-slate-800 text-slate-500 border border-white/5 font-black uppercase tracking-widest text-sm rounded-2xl flex items-center justify-center gap-3 cursor-not-allowed shrink-0 transition-all"
+                        >
+                          <Clock size={18} /> Awaiting Time
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="min-w-0 flex-1 pr-4">
+                          <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-500/20 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-full mb-4">
+                            <Activity size={12} /> Matrix Standby
+                          </div>
+                          <h2 className="text-2xl md:text-3xl font-black uppercase tracking-widest mb-2 text-slate-500 truncate">
+                            No Pending Syncs
+                          </h2>
+                          <p className="text-sm text-slate-600 font-medium truncate">
+                            Queue is clear. Awaiting candidate schedule requests.
+                          </p>
+                        </div>
+                        <button 
+                          disabled
+                          className="w-full md:w-auto px-8 py-5 bg-black/40 text-slate-600 border border-white/5 font-black uppercase tracking-widest text-sm rounded-2xl flex items-center justify-center gap-3 cursor-not-allowed shrink-0"
+                        >
+                          <ShieldCheck size={18} /> Standby
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* --- ACTIVE INTERVIEW BOARDS --- */}
+                  <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-md">
+                    <h2 className="text-xl font-black uppercase tracking-widest text-cyan-400 mb-6">
+                      Live Interview Boards
+                    </h2>
+                    
+                    {activeBoards.length === 0 ? (
+                      <div className="text-center p-10 border border-dashed border-white/10 rounded-2xl text-slate-500 font-bold uppercase text-xs tracking-widest">
+                        No active boards found.
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {activeBoards.map(board => (
+                          <div 
+                            key={board._id} 
+                            className="bg-black/40 border border-white/5 p-6 rounded-[2rem] flex flex-col md:flex-row justify-between md:items-center gap-6 hover:border-blue-500/30 transition-colors group"
+                          >
+                            <div className="flex items-center gap-6 min-w-0 flex-1">
+                              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/5 flex items-center justify-center shadow-inner shrink-0">
+                                <Video className="text-cyan-400" size={24} />
+                              </div>
+                              <div className="min-w-0 flex-1 pr-4">
+                                <h3 className="text-lg font-black tracking-wider uppercase text-white truncate">
+                                  {board.boardSubject}
+                                </h3>
+                                <p className="text-xs text-slate-400 uppercase tracking-widest font-bold mt-1 truncate">
+                                  Scheduled: <span className="text-cyan-400">{board.boardDate}</span>
+                                </p>
+                              </div>
                             </div>
-                            <div className="min-w-0 flex-1 pr-4">
-                              <h3 className="text-lg font-black tracking-wider uppercase text-white truncate">
-                                {board.boardSubject}
-                              </h3>
-                              <p className="text-xs text-slate-400 uppercase tracking-widest font-bold mt-1 truncate">
-                                Scheduled: <span className="text-cyan-400">{board.boardDate}</span>
-                              </p>
+                            
+                            <div className="flex items-center gap-3 w-full md:w-auto justify-end shrink-0">
+                              <button 
+                                onClick={() => handleJoinSync("Interview Board")} 
+                                className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-black uppercase text-[10px] tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center gap-2 whitespace-nowrap active:scale-95"
+                              >
+                                <Video size={14}/> Host Board
+                              </button>
                             </div>
                           </div>
-                          <div className="flex items-center gap-3 shrink-0">
-                            <button 
-                              onClick={() => handleJoinSync("Interview Board")} 
-                              className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-black uppercase text-[10px] tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(6,182,212,0.4)] flex items-center gap-2 active:scale-95"
-                            >
-                              <Video size={14}/> Host Board
-                            </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Column */}
+                <div className="space-y-6">
+                  {/* Action Roadmap */}
+                  <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-md">
+                    <h3 className="text-lg font-black uppercase tracking-widest mb-6 flex items-center gap-2">
+                      <Target size={20} className="text-cyan-400" /> Protocol Roadmap
+                    </h3>
+                    <div className="space-y-8 relative">
+                      <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-white/5" />
+                      {[
+                        { step: "Profile Live", status: "complete" },
+                        { step: "Queue Active", status: "active" },
+                        { step: "Review Sync", status: queue.length > 0 ? "complete" : "pending" },
+                        { step: "Log Score", status: "pending" }
+                      ].map((s, i) => (
+                        <div key={i} className="flex gap-4 items-center relative z-10">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center border-4 border-[#020617] ${
+                            s.status === 'complete' ? 'bg-emerald-500' : s.status === 'active' ? 'bg-cyan-500 animate-pulse' : 'bg-slate-800'
+                          }`}>
+                            <CheckCircle2 size={12} className="text-white" />
                           </div>
+                          <p className={`text-[10px] font-black uppercase tracking-widest ${s.status === 'pending' ? 'text-slate-600' : 'text-slate-200'}`}>
+                            {s.step}
+                          </p>
                         </div>
                       ))}
                     </div>
-                  )}
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -892,6 +923,8 @@ const ExpertDashboard = () => {
                         </div>
 
                         <div className="flex flex-wrap items-center justify-center md:justify-end gap-4 w-full md:w-auto shrink-0">
+                          
+                          {/* RESUME VIEWER */}
                           {candidate.resumeId ? (
                             <button 
                               onClick={() => handleViewResume(candidate.resumeId)} 
@@ -900,7 +933,7 @@ const ExpertDashboard = () => {
                               <FileText size={14} /> View Resume
                             </button>
                           ) : (
-                            <span className="text-[9px] text-slate-600 font-bold uppercase tracking-widest italic px-2">
+                            <span className="text-[9px] text-slate-600 font-bold uppercase italic px-2 tracking-widest">
                               No Resume Node
                             </span>
                           )}
@@ -928,7 +961,7 @@ const ExpertDashboard = () => {
               </motion.div>
             )}
 
-            {/* SCHEDULE W/ ALWAYS-VISIBLE JOIN BUTTON */}
+            {/* SCHEDULE TAB W/ ALWAYS-VISIBLE JOIN BUTTON */}
             {activeTab === 'schedule' && (
               <motion.div 
                 key="schedule" 
@@ -941,15 +974,19 @@ const ExpertDashboard = () => {
                   <h2 className="text-xl font-black uppercase tracking-widest text-cyan-400 mb-6">
                     Nexus Appointment Sync
                   </h2>
+                  
                   <div className="space-y-4">
                     {expertSchedules.length === 0 ? (
                       <div className="text-center p-20 bg-white/5 rounded-[2.5rem] border border-dashed border-white/10 text-slate-600 font-black uppercase text-xs tracking-widest">
                         No active slot requests.
                       </div>
                     ) : expertSchedules.map(s => {
+                      
+                      // TIME LOGIC: Is it time to join? 
+                      // True if status is Confirmed AND time is within 15 mins prior, up to 60 mins after
                       const diff = new Date(s.dateTime).getTime() - new Date().getTime();
                       const isJoinable = s.status === 'Confirmed' && diff <= 15 * 60 * 1000 && diff >= -60 * 60 * 1000;
-                      
+
                       return (
                         <div 
                           key={s._id} 
@@ -1010,6 +1047,7 @@ const ExpertDashboard = () => {
                                     <Clock size={14}/> Awaiting Time
                                   </button>
                                 )}
+                                
                                 <span className="text-emerald-400 text-[10px] font-black uppercase border border-emerald-500/30 px-6 py-3 rounded-xl bg-emerald-500/5 flex items-center gap-2">
                                   <CheckCircle2 size={14} /> Confirmed
                                 </span>
@@ -1048,6 +1086,7 @@ const ExpertDashboard = () => {
                     <h3 className="text-lg font-black uppercase tracking-widest mb-6 text-white">
                       Log Assessment
                     </h3>
+                    
                     <form className="space-y-6" onSubmit={submitScore}>
                       <div>
                         <label className="block text-slate-500 text-[10px] font-black mb-2 uppercase tracking-widest ml-1">
