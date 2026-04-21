@@ -126,7 +126,7 @@ const ExpertDashboard = () => {
         baseQueue.map(async (candidate) => {
           try {
             const res = await axios.get(
-              `http://localhost:5000/api/expert/get_resume/${encodeURIComponent(candidate.name)}`
+              `https://expert-relevance-determination.onrender.com/api/expert/get_resume/${encodeURIComponent(candidate.name)}`
             );
             return { 
               ...candidate, 
@@ -180,7 +180,7 @@ const ExpertDashboard = () => {
           ) {
             localStorage.setItem(`alerted_${s._id}`, 'true');
             
-            axios.post('http://localhost:5000/api/notifications', {
+            axios.post('https://expert-relevance-determination.onrender.com/api/notifications', {
               recipient: expertName, 
               sender: 'System Scheduler', 
               type: 'alert', 
@@ -206,7 +206,7 @@ const ExpertDashboard = () => {
   };
   
   const handleViewResume = (fileId) => { 
-    window.open(`http://localhost:5000/api/vault/view/${fileId}`, '_blank'); 
+    window.open(`https://expert-relevance-determination.onrender.com/api/vault/view/${fileId}`, '_blank'); 
   };
 
   // SEARCH BAR LOGIC
@@ -232,7 +232,7 @@ const ExpertDashboard = () => {
   const fetchExpertSchedules = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:5000/api/schedules/${encodeURIComponent(expertName)}`
+        `https://expert-relevance-determination.onrender.com/api/schedules/${encodeURIComponent(expertName)}`
       );
       setExpertSchedules(res.data);
     } catch (err) {
@@ -242,7 +242,7 @@ const ExpertDashboard = () => {
 
   const fetchBoards = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/boards');
+      const res = await axios.get('https://expert-relevance-determination.onrender.com/api/boards');
       setActiveBoards(res.data);
     } catch (error) {
       console.error("Failed to fetch boards");
@@ -255,7 +255,7 @@ const ExpertDashboard = () => {
     }
     
     try {
-      await axios.post('http://localhost:5000/api/schedules', { 
+      await axios.post('https://expert-relevance-determination.onrender.com/api/schedules', { 
         id, 
         dateTime, 
         status, 
@@ -263,7 +263,7 @@ const ExpertDashboard = () => {
       });
       
       // Notify candidate
-      await axios.post('http://localhost:5000/api/notifications', {
+      await axios.post('https://expert-relevance-determination.onrender.com/api/notifications', {
         recipient: candidateName, 
         sender: expertName, 
         type: 'info', 
@@ -280,7 +280,7 @@ const ExpertDashboard = () => {
 
   const handleJoinSync = async (targetName) => {
     try {
-      await axios.post('http://localhost:5000/api/notifications', {
+      await axios.post('https://expert-relevance-determination.onrender.com/api/notifications', {
         recipient: targetName, 
         sender: expertName, 
         message: `${expertName} has initialized the Neural Sync room. Establish connection immediately.`, 
@@ -300,7 +300,7 @@ const ExpertDashboard = () => {
   const fetchNotifications = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:5000/api/notifications/${encodeURIComponent(expertName)}`
+        `https://expert-relevance-determination.onrender.com/api/notifications/${encodeURIComponent(expertName)}`
       );
       setNotifications(res.data);
     } catch (err) {
@@ -310,7 +310,7 @@ const ExpertDashboard = () => {
 
   const markNotificationRead = async (id) => {
     try {
-      await axios.put(`http://localhost:5000/api/notifications/read/${id}`);
+      await axios.put(`https://expert-relevance-determination.onrender.com/api/notifications/read/${id}`);
       fetchNotifications();
     } catch (err) {
       console.error("Failed to mark read");
@@ -337,7 +337,7 @@ const ExpertDashboard = () => {
     setSubmitStatus({ message: '', type: '' });
     
     try {
-      const res = await axios.post('http://localhost:5000/api/assessments', { 
+      const res = await axios.post('https://expert-relevance-determination.onrender.com/api/assessments', { 
         expert_name: expertName, 
         candidate_name: evaluation.candidateName, 
         score: evaluation.score, 
