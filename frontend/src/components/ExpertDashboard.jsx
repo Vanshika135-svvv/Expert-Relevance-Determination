@@ -21,7 +21,8 @@ import {
   ArrowRight,
   BrainCircuit,
   Clock,
-  Database 
+  Database,
+  Target 
 } from 'lucide-react';
 import axios from 'axios';
 

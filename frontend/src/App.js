@@ -10,6 +10,7 @@ import ExpertDashboard from './components/ExpertDashboard';
 import AdminDashboard from './components/AdminDashboard'; 
 import Interview from './components/Interview';
 import Result from './components/Result';
+import Chatbot from './components/Chatbot'; // <--- 1. IMPORT THE CHATBOT HERE
 
 /**
  * ==========================================
@@ -159,6 +160,13 @@ function App() {
           />
           
         </Routes>
+        
+        {/* ========================================== */}
+        {/* 2. GLOBAL CHATBOT COMPONENT                */}
+        {/* ========================================== */}
+        {/* Because it is inside the Router but outside the Routes, it stays on the screen globally! */}
+        <Chatbot />
+        
       </Router>
     </div>
   );

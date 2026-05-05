@@ -447,7 +447,7 @@ def create_board():
     })
     return jsonify({"status": "Success"})
 
-# THIS IS THE NEW ROUTE THAT WAS MISSING TO FETCH BOARDS
+
 @app.route('/api/boards', methods=['GET'])
 def get_boards():
     """Fetch all active interview boards"""
@@ -458,6 +458,7 @@ def get_boards():
         return jsonify(boards)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/api/assessments', methods=['POST'])
 def save_assessment():
@@ -548,6 +549,63 @@ def get_all_vault_logs():
         return jsonify(logs)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# ==========================================
+# AEGIS AI CHATBOT ROUTE
+# ==========================================
+@app.route('/api/chat', methods=['POST'])
+def chatbot_response():
+    """Smart AI Assistant to help users navigate the Nexus RAC system."""
+    data = request.get_json()
+    user_msg = data.get('message', '').lower()
+    role = data.get('role', 'Guest') # Determines if they are Candidate, Expert, Admin, or logged out
+
+    # Default fallback response
+    reply = f"I am the Aegis AI. I assist with the Nexus RAC matrix. Ask me about scheduling, matches, uploads, or system status."
+
+    # Logic for Greetings
+    if any(word in user_msg for word in ['hello', 'hi', 'hey', 'greetings']):
+        if role == 'Guest':
+            reply = "Greetings. Please log in or create an identity to access the Nexus matrix."
+        else:
+            reply = f"Hello, {role}. All systems are nominal. How can I assist your workflow today?"
+
+    # Logic for System Health / Status
+    elif 'status' in user_msg or 'health' in user_msg or 'online' in user_msg:
+        reply = "The Nexus RAC system and Neural Match Engine are currently operating at 100% capacity."
+
+    # Logic for Match Engine
+    elif 'match' in user_msg or 'engine' in user_msg or 'expert' in user_msg:
+        if role == 'Candidate':
+            reply = "To find your ideal expert, navigate to the 'Match Engine' tab and click 'Run AI Sequence'. Make sure your Vault is populated with your skills."
+        elif role == 'Expert':
+            reply = "Candidates will appear in your 'Live Queue' once the neural engine matches them to your domain."
+        else:
+            reply = "The Neural Match Engine uses Cosine Similarity to pair candidate skill vectors with expert domains."
+
+    # Logic for Scheduling / Meetings
+    elif 'schedule' in user_msg or 'meeting' in user_msg or 'interview' in user_msg or 'time' in user_msg:
+        if role == 'Candidate':
+            reply = "You can propose interview slots in the 'Schedule' tab. Wait for the Expert to Confirm the time before initializing the sync."
+        elif role == 'Expert':
+            reply = "Check your 'Schedule' tab to Accept or Counter interview requests from candidates."
+        else:
+            reply = "Scheduling is handled peer-to-peer via the Node Availability Manager in your dashboard."
+
+    # Logic for Uploads / Resume / Vault
+    elif 'upload' in user_msg or 'resume' in user_msg or 'vault' in user_msg or 'file' in user_msg:
+        reply = "Navigate to the 'Data Vault' tab. You can securely upload PDFs or DOCX files there. They will be encrypted via GridFS."
+
+    # Logic for Assessments / Scores
+    elif 'score' in user_msg or 'assessment' in user_msg or 'result' in user_msg:
+        if role == 'Expert':
+            reply = "You can log official candidate scores in the 'Assessments' module. Please adhere to RAC guidelines."
+        elif role == 'Candidate':
+            reply = "Once your interview concludes, your expert will log your score. You can view your transcript in the 'Performance' tab."
+        else:
+            reply = "Assessments are logged securely into the MongoDB matrix by verified experts only."
+
+    return jsonify({"response": reply})
 
 
 # ==========================================
