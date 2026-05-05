@@ -6,6 +6,7 @@ from bson.objectid import ObjectId
 import pandas as pd
 import os
 import io
+import re  # Added for the Advanced Chatbot Intent Engine
 from dotenv import load_dotenv
 from datetime import datetime
 from werkzeug.utils import secure_filename
@@ -551,59 +552,111 @@ def get_all_vault_logs():
         return jsonify({"error": str(e)}), 500
 
 # ==========================================
-# AEGIS AI CHATBOT ROUTE
+# AEGIS AI CHATBOT ROUTE (V3 - INTENT SCORING ENGINE)
 # ==========================================
 @app.route('/api/chat', methods=['POST'])
 def chatbot_response():
-    """Smart AI Assistant to help users navigate the Nexus RAC system."""
+    """Advanced AI Assistant using Intent Scoring for the Nexus RAC system."""
     data = request.get_json()
-    user_msg = data.get('message', '').lower()
-    role = data.get('role', 'Guest') # Determines if they are Candidate, Expert, Admin, or logged out
+    
+    # Clean the input: lowercase and remove special punctuation for better matching
+    raw_msg = data.get('message', '').lower()
+    user_msg = re.sub(r'[^\w\s]', '', raw_msg) 
+    role = data.get('role', 'Guest')
 
-    # Default fallback response
-    reply = f"I am the Aegis AI. I assist with the Nexus RAC matrix. Ask me about scheduling, matches, uploads, or system status."
+    # 1. Define the Neural Intent Matrix (Keywords for each category)
+    intents = {
+        "greeting": ['hello', 'hi', 'hey', 'greetings', 'hrello', 'morning', 'howdy'],
+        "gratitude": ['thank', 'thanks', 'appreciate', 'awesome', 'great'],
+        "goodbye": ['bye', 'goodbye', 'exit', 'quit', 'leave'],
+        "help": ['help', 'support', 'guide', 'assist', 'confused', 'how do i', 'what can you'],
+        "scheduling": ['schedul', 'meeting', 'interview', 'time', 'sync', 'appointment', 'calendar', 'date', 'book'],
+        "matching": ['match', 'engine', 'pair', 'similar', 'find expert', 'get expert', 'algorithm', 'recommend'],
+        "vault": ['upload', 'resume', 'vault', 'file', 'document', 'pdf', 'cv', 'portfolio'],
+        "assessment": ['score', 'assess', 'result', 'evaluat', 'grade', 'feedback', 'performance', 'transcript'],
+        "status": ['status', 'health', 'online', 'system', 'server', 'capacity']
+    }
 
-    # Logic for Greetings
-    if any(word in user_msg for word in ['hello', 'hi', 'hey', 'greetings']):
+    # 2. Calculate Intent Scores
+    # We count how many keywords from each category appear in the user's message
+    intent_scores = {intent: 0 for intent in intents}
+    
+    for intent, keywords in intents.items():
+        for kw in keywords:
+            if kw in user_msg:
+                # Give heavier weight to longer, more specific phrases
+                weight = 2 if len(kw.split()) > 1 else 1 
+                intent_scores[intent] += weight
+
+    # 3. Determine the Winning Intent
+    best_intent = max(intent_scores, key=intent_scores.get)
+    max_score = intent_scores[best_intent]
+
+    # If no keywords matched, default to 'unknown'
+    if max_score == 0:
+        best_intent = "unknown"
+
+    # 4. Generate the Response based on Winning Intent & User Role
+    reply = ""
+
+    if best_intent == "greeting":
         if role == 'Guest':
-            reply = "Greetings. Please log in or create an identity to access the Nexus matrix."
+            reply = "Greetings. I am Aegis AI. Please log in or create an identity to access the Nexus matrix."
         else:
             reply = f"Hello, {role}. All systems are nominal. How can I assist your workflow today?"
 
-    # Logic for System Health / Status
-    elif 'status' in user_msg or 'health' in user_msg or 'online' in user_msg:
-        reply = "The Nexus RAC system and Neural Match Engine are currently operating at 100% capacity."
+    elif best_intent == "gratitude":
+        reply = "You are welcome. Aegis AI is always here to assist the Nexus network."
 
-    # Logic for Match Engine
-    elif 'match' in user_msg or 'engine' in user_msg or 'expert' in user_msg:
+    elif best_intent == "goodbye":
+        reply = "Session terminated. Safe travels through the matrix."
+
+    elif best_intent == "help":
         if role == 'Candidate':
-            reply = "To find your ideal expert, navigate to the 'Match Engine' tab and click 'Run AI Sequence'. Make sure your Vault is populated with your skills."
+            reply = "I can help you with: 1) Uploading to your Vault. 2) Running the Match Engine. 3) Scheduling an Expert sync. What do you need?"
         elif role == 'Expert':
-            reply = "Candidates will appear in your 'Live Queue' once the neural engine matches them to your domain."
+            reply = "I can help you with: 1) Checking your Live Queue. 2) Managing your Schedule. 3) Logging Assessments. What do you need?"
         else:
-            reply = "The Neural Match Engine uses Cosine Similarity to pair candidate skill vectors with expert domains."
+            reply = "I am the Aegis AI. I assist with matching, scheduling, and data vaults. Please specify your query."
 
-    # Logic for Scheduling / Meetings
-    elif 'schedule' in user_msg or 'meeting' in user_msg or 'interview' in user_msg or 'time' in user_msg:
+    elif best_intent == "scheduling":
         if role == 'Candidate':
-            reply = "You can propose interview slots in the 'Schedule' tab. Wait for the Expert to Confirm the time before initializing the sync."
+            reply = "To schedule, go to the 'Schedule' tab. Propose a time, and wait for the Expert to Confirm before initializing the sync."
         elif role == 'Expert':
-            reply = "Check your 'Schedule' tab to Accept or Counter interview requests from candidates."
+            reply = "Navigate to your 'Schedule' tab. You can Accept pending requests or suggest a Counter-proposal."
         else:
             reply = "Scheduling is handled peer-to-peer via the Node Availability Manager in your dashboard."
 
-    # Logic for Uploads / Resume / Vault
-    elif 'upload' in user_msg or 'resume' in user_msg or 'vault' in user_msg or 'file' in user_msg:
-        reply = "Navigate to the 'Data Vault' tab. You can securely upload PDFs or DOCX files there. They will be encrypted via GridFS."
+    elif best_intent == "matching":
+        if role == 'Candidate':
+            reply = "Navigate to the 'Match Engine' tab and click 'Run AI Sequence' to find your ideal expert based on your Vault skills."
+        elif role == 'Expert':
+            reply = "Candidates are automatically routed to your 'Live Queue' when the neural engine matches their skills to your domain."
+        else:
+            reply = "The Neural Match Engine uses Cosine Similarity to mathematically pair candidate skill vectors with expert domains."
 
-    # Logic for Assessments / Scores
-    elif 'score' in user_msg or 'assessment' in user_msg or 'result' in user_msg:
+    elif best_intent == "vault":
+        reply = "Navigate to the 'Data Vault' tab. You can securely upload PDFs or DOCX files. They will be encrypted directly into our GridFS database."
+
+    elif best_intent == "assessment":
         if role == 'Expert':
-            reply = "You can log official candidate scores in the 'Assessments' module. Please adhere to RAC guidelines."
+            reply = "You can log official candidate scores in the 'Assessments' module. Ensure you follow all RAC evaluation guidelines."
         elif role == 'Candidate':
-            reply = "Once your interview concludes, your expert will log your score. You can view your transcript in the 'Performance' tab."
+            reply = "Once an interview concludes, your expert will log your score. You can view your official transcript in the 'Assessments' tab."
         else:
             reply = "Assessments are logged securely into the MongoDB matrix by verified experts only."
+
+    elif best_intent == "status":
+        reply = "The Nexus RAC system and Neural Match Engine are currently operating at 100% optimal capacity."
+
+    elif best_intent == "unknown":
+        # Dynamic Fallback based on Role
+        if role == 'Candidate':
+            reply = "I didn't quite catch that. Try asking me about 'matching with an expert', 'scheduling an interview', or 'uploading a resume'."
+        elif role == 'Expert':
+            reply = "I didn't quite catch that. Try asking me about 'evaluating a candidate', 'checking my schedule', or 'my live queue'."
+        else:
+            reply = "I am the Aegis AI. I assist with the Nexus RAC matrix. Ask me about scheduling, matching, uploads, or system status."
 
     return jsonify({"response": reply})
 
