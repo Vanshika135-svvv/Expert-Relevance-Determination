@@ -6,7 +6,9 @@ from bson.objectid import ObjectId
 import pandas as pd
 import os
 import io
-import re  # Added for the Advanced Chatbot Intent Engine
+import re  
+from thefuzz import fuzz       # <-- NEW: Advanced NLP Fuzzy Matching
+from thefuzz import process    # <-- NEW: Advanced NLP Fuzzy Matching
 from dotenv import load_dotenv
 from datetime import datetime
 from werkzeug.utils import secure_filename
@@ -551,52 +553,50 @@ def get_all_vault_logs():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 # ==========================================
-# AEGIS AI CHATBOT ROUTE (V3 - INTENT SCORING ENGINE)
+# 10. AEGIS AI CHATBOT ROUTE (V4 - NLP FUZZY ENGINE)
 # ==========================================
 @app.route('/api/chat', methods=['POST'])
 def chatbot_response():
-    """Advanced AI Assistant using Intent Scoring for the Nexus RAC system."""
+    """Advanced NLP AI Assistant using Fuzzy String Matching."""
     data = request.get_json()
     
-    # Clean the input: lowercase and remove special punctuation for better matching
-    raw_msg = data.get('message', '').lower()
-    user_msg = re.sub(r'[^\w\s]', '', raw_msg) 
+    user_msg = data.get('message', '').lower()
     role = data.get('role', 'Guest')
 
-    # 1. Define the Neural Intent Matrix (Keywords for each category)
+    # 1. Training Data (Instead of single words, we give it example phrases)
     intents = {
-        "greeting": ['hello', 'hi', 'hey', 'greetings', 'hrello', 'morning', 'howdy'],
-        "gratitude": ['thank', 'thanks', 'appreciate', 'awesome', 'great'],
-        "goodbye": ['bye', 'goodbye', 'exit', 'quit', 'leave'],
-        "help": ['help', 'support', 'guide', 'assist', 'confused', 'how do i', 'what can you'],
-        "scheduling": ['schedul', 'meeting', 'interview', 'time', 'sync', 'appointment', 'calendar', 'date', 'book'],
-        "matching": ['match', 'engine', 'pair', 'similar', 'find expert', 'get expert', 'algorithm', 'recommend'],
-        "vault": ['upload', 'resume', 'vault', 'file', 'document', 'pdf', 'cv', 'portfolio'],
-        "assessment": ['score', 'assess', 'result', 'evaluat', 'grade', 'feedback', 'performance', 'transcript'],
-        "status": ['status', 'health', 'online', 'system', 'server', 'capacity']
+        "greeting": ["hello", "hi there", "greetings aegis", "good morning", "hey", "hrello"],
+        "gratitude": ["thank you", "thanks", "i appreciate it", "awesome", "great job"],
+        "goodbye": ["goodbye", "bye", "exit system", "log off"],
+        "help": ["how do i use this", "what can you do", "help me", "i am confused", "assist me"],
+        "status": ["is the system down", "any backend errors", "system status", "health check", "is it online", "server capacity"],
+        "scheduling": ["book an appointment", "schedule a meeting", "interview time", "sync with expert", "set a date", "schedule"],
+        "matching": ["find an expert", "run match engine", "cosine similarity", "pair me with", "get an expert"],
+        "vault": ["upload my resume", "where is the vault", "add a document", "upload pdf", "submit cv"],
+        "assessment": ["candidate score", "evaluation result", "interview feedback", "grade candidate", "view transcript"]
     }
 
-    # 2. Calculate Intent Scores
-    # We count how many keywords from each category appear in the user's message
-    intent_scores = {intent: 0 for intent in intents}
-    
-    for intent, keywords in intents.items():
-        for kw in keywords:
-            if kw in user_msg:
-                # Give heavier weight to longer, more specific phrases
-                weight = 2 if len(kw.split()) > 1 else 1 
-                intent_scores[intent] += weight
+    # 2. NLP Fuzzy Matching Logic
+    best_intent = "unknown"
+    highest_score = 0
 
-    # 3. Determine the Winning Intent
-    best_intent = max(intent_scores, key=intent_scores.get)
-    max_score = intent_scores[best_intent]
+    # Compare the user's message against every training phrase
+    for intent, phrases in intents.items():
+        # token_set_ratio ignores extra words and word order, making it incredibly smart
+        best_match, score = process.extractOne(user_msg, phrases, scorer=fuzz.token_set_ratio)
+        
+        if score > highest_score:
+            highest_score = score
+            best_intent = intent
 
-    # If no keywords matched, default to 'unknown'
-    if max_score == 0:
+    # 3. Confidence Threshold
+    # If the AI is less than 50% confident, it admits it doesn't understand
+    if highest_score < 50:
         best_intent = "unknown"
 
-    # 4. Generate the Response based on Winning Intent & User Role
+    # 4. Generate the Response
     reply = ""
 
     if best_intent == "greeting":
@@ -605,19 +605,8 @@ def chatbot_response():
         else:
             reply = f"Hello, {role}. All systems are nominal. How can I assist your workflow today?"
 
-    elif best_intent == "gratitude":
-        reply = "You are welcome. Aegis AI is always here to assist the Nexus network."
-
-    elif best_intent == "goodbye":
-        reply = "Session terminated. Safe travels through the matrix."
-
-    elif best_intent == "help":
-        if role == 'Candidate':
-            reply = "I can help you with: 1) Uploading to your Vault. 2) Running the Match Engine. 3) Scheduling an Expert sync. What do you need?"
-        elif role == 'Expert':
-            reply = "I can help you with: 1) Checking your Live Queue. 2) Managing your Schedule. 3) Logging Assessments. What do you need?"
-        else:
-            reply = "I am the Aegis AI. I assist with matching, scheduling, and data vaults. Please specify your query."
+    elif best_intent == "status":
+        reply = "The Nexus RAC system and Neural Match Engine are currently operating at 100% capacity. No backend errors detected."
 
     elif best_intent == "scheduling":
         if role == 'Candidate':
@@ -646,11 +635,16 @@ def chatbot_response():
         else:
             reply = "Assessments are logged securely into the MongoDB matrix by verified experts only."
 
-    elif best_intent == "status":
-        reply = "The Nexus RAC system and Neural Match Engine are currently operating at 100% optimal capacity."
+    elif best_intent == "help":
+        reply = "I can assist you with: 1) Uploading files to the Vault, 2) The Match Engine, 3) Scheduling, and 4) Assessments. What do you need help with?"
+
+    elif best_intent == "gratitude":
+        reply = "You are welcome. Aegis AI is always here to secure the Nexus network."
+
+    elif best_intent == "goodbye":
+        reply = "Session terminated. Safe travels through the matrix."
 
     elif best_intent == "unknown":
-        # Dynamic Fallback based on Role
         if role == 'Candidate':
             reply = "I didn't quite catch that. Try asking me about 'matching with an expert', 'scheduling an interview', or 'uploading a resume'."
         elif role == 'Expert':
@@ -658,11 +652,11 @@ def chatbot_response():
         else:
             reply = "I am the Aegis AI. I assist with the Nexus RAC matrix. Ask me about scheduling, matching, uploads, or system status."
 
-    return jsonify({"response": reply})
+    return jsonify({"response": reply, "confidence": highest_score}) # Added confidence score for debugging if needed
 
 
 # ==========================================
-# 10. RUN ENGINE
+# 11. RUN ENGINE
 # ==========================================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
