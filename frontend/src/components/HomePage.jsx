@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -13,10 +13,26 @@ import {
   Network,
   Terminal,
   Database,
-  Code
+  Code,
+  Sparkles,
+  Layers
 } from 'lucide-react';
 
 const HomePage = () => {
+  // ==========================================
+  // STATE MANAGEMENT
+  // ==========================================
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  // Detect scroll to make the navbar change from transparent to glassmorphism
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   // ==========================================
   // ANIMATION VARIANTS
   // ==========================================
@@ -37,29 +53,63 @@ const HomePage = () => {
     }
   };
 
+  // Generate random coordinates for floating background particles
+  const floatingParticles = Array.from({ length: 15 }).map((_, i) => ({
+    id: i,
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    duration: Math.random() * 20 + 10,
+    delay: Math.random() * 5
+  }));
+
   // ==========================================
   // RENDER COMPONENT
   // ==========================================
   return (
     <div className="min-h-screen bg-[#020617] text-slate-200 font-sans selection:bg-cyan-500 selection:text-black overflow-x-hidden relative">
       
-      {/* --- ANIMATED BACKGROUND GLOWS --- */}
-      <div className="fixed inset-0 pointer-events-none -z-10 flex items-center justify-center overflow-hidden">
+      {/* --- ANIMATED BACKGROUND GLOWS & PARTICLES --- */}
+      <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+        {/* Giant breathing glows */}
         <motion.div 
-          animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.5, 0.3] }}
+          animate={{ scale: [1, 1.1, 1], opacity: [0.2, 0.4, 0.2] }}
           transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-cyan-600/10 blur-[150px] rounded-full mix-blend-screen" 
+          className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-cyan-600/20 blur-[150px] rounded-full mix-blend-screen" 
         />
         <motion.div 
-          animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.4, 0.2] }}
+          animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }}
           transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-          className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] bg-fuchsia-600/10 blur-[150px] rounded-full mix-blend-screen" 
+          className="absolute bottom-[-10%] right-[-10%] w-[40vw] h-[40vw] bg-fuchsia-600/20 blur-[150px] rounded-full mix-blend-screen" 
         />
+        
+        {/* Floating Data Nodes */}
+        {floatingParticles.map((particle) => (
+          <motion.div
+            key={particle.id}
+            animate={{
+              y: ["0%", "-100%", "0%"],
+              x: ["0%", "50%", "0%"],
+              opacity: [0, 0.5, 0]
+            }}
+            transition={{
+              duration: particle.duration,
+              repeat: Infinity,
+              delay: particle.delay,
+              ease: "linear"
+            }}
+            className="absolute w-1 h-1 bg-cyan-400 rounded-full shadow-[0_0_10px_#22d3ee]"
+            style={{ left: `${particle.x}%`, top: `${particle.y}%` }}
+          />
+        ))}
       </div>
 
-      {/* --- 1. GLOBAL NAVIGATION BAR --- */}
-      <nav className="fixed top-0 w-full z-50 backdrop-blur-2xl border-b border-white/5 bg-[#020617]/70 shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
-        <div className="max-w-7xl mx-auto flex justify-between items-center p-5 px-6 md:px-10">
+      {/* --- 1. DYNAMIC NAVIGATION BAR --- */}
+      <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
+        isScrolled 
+          ? "backdrop-blur-2xl border-b border-white/10 bg-[#020617]/80 shadow-[0_4px_30px_rgba(0,0,0,0.5)] py-3" 
+          : "bg-transparent py-5"
+      }`}>
+        <div className="max-w-7xl mx-auto flex justify-between items-center px-6 md:px-10">
           
           {/* Logo Section */}
           <Link to="/" className="flex items-center gap-3 group">
@@ -67,7 +117,6 @@ const HomePage = () => {
               <BrainCircuit className="text-cyan-400" size={24} />
             </div>
             <div className="flex flex-col">
-              {/* REBRANDED TO AEGIS */}
               <span className="text-xl font-black tracking-widest text-white leading-none">AEGIS</span>
               <span className="text-[9px] font-bold tracking-[0.3em] text-cyan-400 uppercase leading-none mt-1">RAC System</span>
             </div>
@@ -76,7 +125,7 @@ const HomePage = () => {
           {/* Center Links (Hidden on Mobile) */}
           <div className="hidden md:flex gap-10 text-xs font-black text-slate-400 uppercase tracking-widest">
             <a href="#features" className="hover:text-cyan-400 transition-colors">Platform</a>
-            <a href="#stats" className="hover:text-cyan-400 transition-colors">Impact</a>
+            <a href="#domains" className="hover:text-cyan-400 transition-colors">Domains</a>
             <a href="#how-it-works" className="hover:text-cyan-400 transition-colors">Process</a>
           </div>
 
@@ -88,12 +137,14 @@ const HomePage = () => {
             >
               Sign In
             </Link>
-            <Link 
-              to="/signup" 
-              className="px-6 py-3 rounded-full bg-cyan-600 text-white font-black text-[10px] tracking-widest uppercase hover:bg-cyan-500 transition-all shadow-[0_0_20px_rgba(6,182,212,0.3)] active:scale-95"
-            >
-              Get Access
-            </Link>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Link 
+                to="/signup" 
+                className="px-6 py-3 rounded-full bg-cyan-600 text-white font-black text-[10px] tracking-widest uppercase hover:bg-cyan-500 transition-all shadow-[0_0_20px_rgba(6,182,212,0.3)]"
+              >
+                Get Access
+              </Link>
+            </motion.div>
           </div>
         </div>
       </nav>
@@ -109,9 +160,10 @@ const HomePage = () => {
           {/* Top Pill Badge */}
           <motion.div 
             variants={itemVariants}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] mb-10 shadow-[0_0_20px_rgba(6,182,212,0.15)]"
+            whileHover={{ scale: 1.05 }}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-[10px] font-black uppercase tracking-[0.2em] mb-10 shadow-[0_0_20px_rgba(6,182,212,0.15)] cursor-default"
           >
-            <Zap size={14} className="animate-pulse" /> Aegis AI-Powered Engine v4.5
+            <Sparkles size={14} className="animate-pulse text-cyan-300" /> Aegis AI-Powered Engine v4.5
           </motion.div>
           
           {/* Main Headline */}
@@ -139,18 +191,22 @@ const HomePage = () => {
             variants={itemVariants}
             className="flex flex-col md:flex-row justify-center items-center gap-5"
           >
-            <Link 
-              to="/signup" 
-              className="w-full md:w-auto px-12 py-5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 rounded-2xl font-black text-white text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3 transition-all shadow-[0_0_40px_rgba(6,182,212,0.4)] active:scale-95 hover:shadow-[0_0_60px_rgba(6,182,212,0.6)]"
-            >
-              INITIALIZE CONNECTION <ArrowRight size={16} />
-            </Link>
-            <Link 
-              to="/login" 
-              className="w-full md:w-auto px-12 py-5 bg-white/5 border border-white/10 hover:bg-white/10 rounded-2xl font-black text-white text-xs uppercase tracking-[0.2em] flex items-center justify-center transition-all backdrop-blur-md"
-            >
-              ACCESS PORTAL
-            </Link>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="w-full md:w-auto">
+              <Link 
+                to="/signup" 
+                className="w-full px-12 py-5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 rounded-2xl font-black text-white text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3 shadow-[0_0_40px_rgba(6,182,212,0.4)]"
+              >
+                INITIALIZE CONNECTION <ArrowRight size={16} />
+              </Link>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="w-full md:w-auto">
+              <Link 
+                to="/login" 
+                className="w-full px-12 py-5 bg-white/5 border border-white/10 hover:bg-white/10 rounded-2xl font-black text-white text-xs uppercase tracking-[0.2em] flex items-center justify-center backdrop-blur-md"
+              >
+                ACCESS PORTAL
+              </Link>
+            </motion.div>
           </motion.div>
         </motion.div>
 
@@ -166,7 +222,7 @@ const HomePage = () => {
         </motion.div>
       </section>
 
-      {/* --- NEW FEATURE: LIVE SYSTEM TICKER --- */}
+      {/* --- LIVE SYSTEM TICKER --- */}
       <div className="w-full bg-cyan-900/10 border-y border-cyan-500/20 py-3 overflow-hidden flex whitespace-nowrap relative z-10 backdrop-blur-md">
         <motion.div
           animate={{ x: [0, -1000] }}
@@ -178,6 +234,29 @@ const HomePage = () => {
           ))}
         </motion.div>
       </div>
+
+      {/* --- NEW SECTION: INTERACTIVE DOMAIN MATRIX --- */}
+      <section id="domains" className="py-24 relative z-10 border-b border-white/5">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-sm font-black text-fuchsia-400 uppercase tracking-[0.3em] mb-4">Neural Categorization</h2>
+            <h3 className="text-3xl md:text-4xl font-black text-white uppercase tracking-widest">Supported Domains</h3>
+          </div>
+          
+          <div className="flex flex-wrap justify-center gap-4">
+            {["Machine Learning", "Cloud Architecture", "Cybersecurity", "Full-Stack Dev", "Data Science", "DevOps Engineering", "Blockchain", "UI/UX Design"].map((domain, i) => (
+              <motion.div
+                key={i}
+                whileHover={{ scale: 1.1, backgroundColor: "rgba(6, 182, 212, 0.15)", borderColor: "rgba(6, 182, 212, 0.5)" }}
+                className="px-6 py-3 rounded-full bg-white/5 border border-white/10 text-slate-300 font-medium text-sm md:text-base cursor-pointer transition-colors shadow-lg hover:shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:text-cyan-300 flex items-center gap-2"
+              >
+                <Layers size={16} />
+                {domain}
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* --- 3. STATS SECTION --- */}
       <section id="stats" className="py-24 relative z-10">
@@ -195,7 +274,8 @@ const HomePage = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-xl text-center group hover:bg-white/10 transition-colors hover:border-cyan-500/30"
+                whileHover={{ y: -5 }}
+                className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-xl text-center group hover:bg-white/10 transition-colors hover:border-cyan-500/30 shadow-xl"
               >
                 <div className="flex justify-center mb-6">
                   <div className={`p-4 rounded-2xl bg-black/40 border border-white/5 ${stat.color} group-hover:scale-110 group-hover:shadow-[0_0_20px_currentColor] transition-all`}>
@@ -226,7 +306,7 @@ const HomePage = () => {
           {/* Feature 1 */}
           <motion.div 
             initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-            whileHover={{ y: -10 }} 
+            whileHover={{ y: -10, scale: 1.02 }} 
             className="p-10 rounded-[3rem] bg-gradient-to-b from-white/5 to-transparent border border-white/10 backdrop-blur-xl relative overflow-hidden group hover:border-cyan-500/50 transition-all duration-300"
           >
             <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 blur-[50px] rounded-full group-hover:bg-cyan-500/30 transition-colors duration-500" />
@@ -249,7 +329,7 @@ const HomePage = () => {
           {/* Feature 2 */}
           <motion.div 
             initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}
-            whileHover={{ y: -10 }} 
+            whileHover={{ y: -10, scale: 1.02 }} 
             className="p-10 rounded-[3rem] bg-gradient-to-b from-blue-600/10 to-transparent border border-blue-500/20 backdrop-blur-xl relative overflow-hidden group hover:border-blue-500/50 transition-all duration-300 shadow-[0_0_40px_rgba(59,130,246,0.1)] hover:shadow-[0_0_60px_rgba(59,130,246,0.3)]"
           >
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-[50px] rounded-full group-hover:bg-blue-500/30 transition-colors duration-500" />
@@ -272,7 +352,7 @@ const HomePage = () => {
           {/* Feature 3 */}
           <motion.div 
             initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.4 }}
-            whileHover={{ y: -10 }} 
+            whileHover={{ y: -10, scale: 1.02 }} 
             className="p-10 rounded-[3rem] bg-gradient-to-b from-white/5 to-transparent border border-white/10 backdrop-blur-xl relative overflow-hidden group hover:border-fuchsia-500/50 transition-all duration-300"
           >
             <div className="absolute top-0 right-0 w-32 h-32 bg-fuchsia-500/10 blur-[50px] rounded-full group-hover:bg-fuchsia-500/30 transition-colors duration-500" />
@@ -295,15 +375,15 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* --- NEW FEATURE: TECH STACK BADGES --- */}
+      {/* --- TECH STACK BADGES --- */}
       <section className="py-20 relative z-10 bg-black/20 border-y border-white/5">
          <div className="max-w-4xl mx-auto px-6 text-center">
             <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-8">System Architecture Powered By</h4>
             <div className="flex flex-wrap justify-center items-center gap-6 md:gap-12 opacity-70">
-              <div className="flex items-center gap-2 text-slate-300 font-mono text-sm"><Code size={18} className="text-cyan-400"/> React.js</div>
-              <div className="flex items-center gap-2 text-slate-300 font-mono text-sm"><Terminal size={18} className="text-blue-400"/> Python Flask</div>
-              <div className="flex items-center gap-2 text-slate-300 font-mono text-sm"><Database size={18} className="text-emerald-400"/> MongoDB</div>
-              <div className="flex items-center gap-2 text-slate-300 font-mono text-sm"><BrainCircuit size={18} className="text-fuchsia-400"/> Scikit-Learn NLP</div>
+              <motion.div whileHover={{ scale: 1.1, color: "#22d3ee" }} className="flex items-center gap-2 text-slate-300 font-mono text-sm cursor-default transition-colors"><Code size={18}/> React.js</motion.div>
+              <motion.div whileHover={{ scale: 1.1, color: "#60a5fa" }} className="flex items-center gap-2 text-slate-300 font-mono text-sm cursor-default transition-colors"><Terminal size={18}/> Python Flask</motion.div>
+              <motion.div whileHover={{ scale: 1.1, color: "#34d399" }} className="flex items-center gap-2 text-slate-300 font-mono text-sm cursor-default transition-colors"><Database size={18}/> MongoDB</motion.div>
+              <motion.div whileHover={{ scale: 1.1, color: "#e879f9" }} className="flex items-center gap-2 text-slate-300 font-mono text-sm cursor-default transition-colors"><BrainCircuit size={18}/> Scikit-Learn NLP</motion.div>
             </div>
          </div>
       </section>
@@ -334,13 +414,13 @@ const HomePage = () => {
                 className="flex gap-8 md:gap-12 items-start relative z-10 group"
               >
                 <div className="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-[#020617] border border-white/10 flex items-center justify-center shrink-0 group-hover:border-cyan-500/50 group-hover:shadow-[0_0_30px_rgba(6,182,212,0.2)] transition-all">
-                  <span className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-slate-600 group-hover:from-cyan-400 group-hover:to-blue-600 transition-all">
+                  <motion.span whileHover={{ scale: 1.1 }} className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-slate-600 group-hover:from-cyan-400 group-hover:to-blue-600 transition-all">
                     {step.step}
-                  </span>
+                  </motion.span>
                 </div>
                 <div className="pt-2 md:pt-4">
-                  <h4 className="text-xl md:text-2xl font-black text-white mb-3 uppercase tracking-wider group-hover:text-cyan-400 transition-colors">{step.title}</h4>
-                  <p className="text-slate-400 text-sm md:text-base leading-relaxed font-medium">{step.desc}</p>
+                  <h4 className="text-xl md:text-2xl font-black text-white mb-3 uppercase tracking-wider group-hover:text-cyan-400 transition-colors cursor-default">{step.title}</h4>
+                  <p className="text-slate-400 text-sm md:text-base leading-relaxed font-medium cursor-default">{step.desc}</p>
                 </div>
               </motion.div>
             ))}
@@ -351,7 +431,7 @@ const HomePage = () => {
       {/* --- 6. FOOTER --- */}
       <footer className="py-12 border-t border-white/5 text-center bg-[#020617] relative z-10">
         <div className="flex justify-center mb-6">
-          <BrainCircuit size={24} className="text-slate-600" />
+          <BrainCircuit size={24} className="text-slate-600 hover:text-cyan-400 transition-colors cursor-pointer" />
         </div>
         <p className="text-xs font-black text-slate-500 uppercase tracking-[0.3em] mb-3">
           &copy; 2026 AEGIS AI | AEGIS RAC SYSTEM
