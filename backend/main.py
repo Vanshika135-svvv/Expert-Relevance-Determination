@@ -115,14 +115,37 @@ def register_user():
 
 @app.route('/api/login', methods=['POST'])
 def login_user():
-    """Secure Auth: Verify user identity against hashed database records"""
+    """Secure Auth: Lenient login matching ignoring case, titles (Dr.), and spaces."""
     try:
         data = request.get_json()
-        user = users_col.find_one({
-            "$or": [{"username": data['username']}, {"email": data['username']}]
-        })
+        identifier = data['username'].strip()
+        password = data['password']
         
-        if user and check_password_hash(user['password'], data['password']):
+        # If the user types an email (contains @), do a standard case-insensitive match
+        if '@' in identifier:
+            user = users_col.find_one({"email": {"$regex": f"^{identifier}$", "$options": "i"}})
+        else:
+            # If they typed a NAME, we make it super lenient!
+            
+            # 1. Strip common titles like "Dr.", "Mr.", "Prof." from what the user typed
+            clean_name = re.sub(r'^(dr\.?|mr\.?|ms\.?|mrs\.?|prof\.?)\s*', '', identifier, flags=re.IGNORECASE).strip()
+            
+            # 2. Split the remaining name into parts and join with ".*" (Regex for "anything in between")
+            # Example: If user types "priya shah", it becomes the regex "priya.*shah"
+            # This matches "Dr. Priya Shah", "Priya Shah", "priya   shah", etc.
+            name_parts = [re.escape(term) for term in re.split(r'\W+', clean_name) if term]
+            lenient_regex = ".*".join(name_parts)
+            
+            # 3. Search the database ignoring case ($options: "i")
+            user = users_col.find_one({
+                "$or": [
+                    {"username": {"$regex": lenient_regex, "$options": "i"}},
+                    {"email": {"$regex": f"^{identifier}$", "$options": "i"}}
+                ]
+            })
+        
+        # Check if we found the user AND the hashed password matches
+        if user and check_password_hash(user['password'], password):
             return jsonify({
                 "status": "Success", 
                 "role": user['role'], 
@@ -131,6 +154,7 @@ def login_user():
             })
         else:
             return jsonify({"status": "Error", "message": "Invalid credentials."}), 401
+            
     except Exception as e:
         return jsonify({"status": "Error", "message": str(e)}), 500
 
@@ -666,58 +690,6 @@ def chatbot_response():
             reply = "I am the Aegis AI. I currently do not have data on that query. Please ask me about creating an identity, scheduling a sync, or the Aegis RAC system."
 
     return jsonify({"response": reply})
-
-
-# ==========================================
-# TEMPORARY ADMIN SCRIPT: SEED EXPERT ACCOUNTS
-# ==========================================
-@app.route('/api/seed_experts', methods=['GET'])
-def seed_expert_accounts():
-    """Loops through all experts and creates a secure login account for them."""
-    try:
-        # 1. Fetch all experts from the database
-        experts = list(experts_col.find())
-        created_count = 0
-        skipped_count = 0
-        
-        for exp in experts:
-            # 2. Get their name (handling different possible database column names)
-            name = exp.get('ExpertName') or exp.get('name')
-            if not name:
-                continue
-            
-            # 3. Generate a clean, random email based on their name
-            # e.g., "Dr. Sarah Chen" -> "dr.sarah.chen@aegis.edu.in"
-            clean_name = name.lower().replace(' ', '.')
-            email = f"{clean_name}@aegis.edu.in"
-            
-            # 4. Check if they already have an account to prevent duplicates
-            existing = users_col.find_one({"email": email})
-            if existing:
-                skipped_count += 1
-                continue
-            
-            # 5. Hash the universal password "Indore"
-            hashed_password = generate_password_hash("Indore", method='pbkdf2:sha256')
-            
-            # 6. Save them into the secure users collection
-            users_col.insert_one({
-                "username": name,
-                "email": email,
-                "password": hashed_password,
-                "role": "Expert",
-                "skills": exp.get('ExpertSubject') or exp.get('domain', 'N/A'),
-                "createdAt": datetime.utcnow()
-            })
-            created_count += 1
-            
-        return jsonify({
-            "status": "Success", 
-            "message": f"Created {created_count} new Expert accounts! Skipped {skipped_count} existing.",
-            "universal_password": "Indore"
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 
 # ==========================================
