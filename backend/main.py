@@ -47,7 +47,7 @@ if not MONGO_URI:
 
 # Connect to MongoDB Atlas
 client = MongoClient(MONGO_URI)
-db = client['AegisRAC']
+db = client['NexusRAC']
 
 # Define Data Collections
 experts_col = db['experts']
