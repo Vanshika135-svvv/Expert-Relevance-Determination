@@ -46,7 +46,7 @@ if not MONGO_URI:
 
 # Connect to MongoDB Atlas
 client = MongoClient(MONGO_URI)
-db = client['NexusRAC']
+db = client['AegisRAC']
 
 # Define Data Collections
 experts_col = db['experts']
@@ -70,7 +70,7 @@ fs = GridFS(db)
 def index():
     return jsonify({
         "status": "Success", 
-        "message": "Nexus RAC Flask Backend Running!",
+        "message": "Aegis RAC Flask Backend Running!",
         "version": "4.5.0 (Full Integration)"
     })
 
@@ -556,7 +556,7 @@ def get_all_vault_logs():
 # ==========================================
 @app.route('/api/chat', methods=['POST'])
 def chatbot_response():
-    """Advanced AI Assistant using Intent Scoring for the Nexus RAC system."""
+    """Advanced AI Assistant using Intent Scoring for the Aegis RAC system."""
     data = request.get_json()
     
     # Clean the input: lowercase and remove special punctuation for better matching
@@ -601,12 +601,12 @@ def chatbot_response():
 
     if best_intent == "greeting":
         if role == 'Guest':
-            reply = "Greetings. I am Aegis AI. Please log in or create an identity to access the Nexus matrix."
+            reply = "Greetings. I am Aegis AI. Please log in or create an identity to access the Aegis matrix."
         else:
             reply = f"Hello, {role}. All systems are nominal. How can I assist your workflow today?"
 
     elif best_intent == "gratitude":
-        reply = "You are welcome. Aegis AI is always here to assist the Nexus network."
+        reply = "You are welcome. Aegis AI is always here to assist the Aegis network."
 
     elif best_intent == "goodbye":
         reply = "Session terminated. Safe travels through the matrix."
@@ -647,7 +647,7 @@ def chatbot_response():
             reply = "Assessments are logged securely into the MongoDB matrix by verified experts only."
 
     elif best_intent == "status":
-        reply = "The Nexus RAC system and Neural Match Engine are currently operating at 100% optimal capacity."
+        reply = "The Aegis RAC system and Neural Match Engine are currently operating at 100% optimal capacity."
 
     elif best_intent == "unknown":
         # Dynamic Fallback based on Role
@@ -656,7 +656,7 @@ def chatbot_response():
         elif role == 'Expert':
             reply = "I didn't quite catch that. Try asking me about 'evaluating a candidate', 'checking my schedule', or 'my live queue'."
         else:
-            reply = "I am the Aegis AI. I assist with the Nexus RAC matrix. Ask me about scheduling, matching, uploads, or system status."
+            reply = "I am the Aegis AI. I assist with the Aegis RAC matrix. Ask me about scheduling, matching, uploads, or system status."
 
     return jsonify({"response": reply})
 

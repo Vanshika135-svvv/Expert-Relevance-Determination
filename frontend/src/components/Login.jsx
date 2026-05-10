@@ -74,7 +74,7 @@ const Login = () => {
             <ShieldCheck className="text-cyan-400" size={40} />
           </motion.div>
           <h1 className="text-3xl font-black tracking-widest bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent uppercase">
-            Nexus Access
+            Aegis Access
           </h1>
           <p className="text-slate-500 mt-2 text-sm tracking-widest uppercase font-bold">Identity Verification</p>
         </div>

@@ -387,7 +387,7 @@ const AdminDashboard = () => {
                 className="overflow-hidden whitespace-nowrap"
               >
                 <h2 className="text-sm font-black tracking-widest uppercase">
-                  Nexus Command
+                  Aegis Command
                 </h2>
                 <p className="text-[9px] text-purple-500 font-bold tracking-[0.2em] uppercase">
                   Root Admin

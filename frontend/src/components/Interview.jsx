@@ -43,15 +43,15 @@ const Interview = () => {
   const passedTarget = location.state?.target;
   useEffect(() => {
     if (passedTarget) {
-      sessionStorage.setItem('nexusTarget', passedTarget);
+      sessionStorage.setItem('AegisTarget', passedTarget);
     }
   }, [passedTarget]);
-  const targetCandidate = passedTarget || sessionStorage.getItem('nexusTarget') || "";
+  const targetCandidate = passedTarget || sessionStorage.getItem('AegisTarget') || "";
 
   const rawRoomName = myRole === 'Expert' && targetCandidate ? targetCandidate : myName;
   const normalizedRoomName = rawRoomName.trim().toLowerCase().replace(/\s+/g, '');
   const encodedRoomName = btoa(normalizedRoomName).replace(/=/g, '');
-  const sanitizedRoomName = `NexusSync-${encodedRoomName}`;
+  const sanitizedRoomName = `AegisSync-${encodedRoomName}`;
 
   // --- BULLETPROOF DISCONNECT LOGIC ---
   const handleDisconnect = () => {

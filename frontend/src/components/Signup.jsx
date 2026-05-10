@@ -120,7 +120,7 @@ const Signup = () => {
             Create Access
           </h1>
           <p className="text-slate-400 mt-2 text-sm tracking-widest uppercase">
-            Nexus RAC Registration
+            Aegis RAC Registration
           </p>
         </div>
 
@@ -156,7 +156,7 @@ const Signup = () => {
               <input 
                 type="email" 
                 name="email"
-                placeholder="expert@nexus-rac.ai"
+                placeholder="expert@Aegis-rac.ai"
                 className="w-full bg-black/20 border border-white/10 rounded-2xl py-4 pl-12 pr-4 focus:border-fuchsia-500/50 outline-none transition-all text-white placeholder:text-slate-700"
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
                 required

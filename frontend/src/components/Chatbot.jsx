@@ -6,7 +6,7 @@ import axios from 'axios';
 const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { text: "Greetings. I am the Aegis AI Assistant. How can I assist you with the Nexus RAC system today?", sender: 'bot' }
+    { text: "Greetings. I am the Aegis AI Assistant. How can I assist you with the Aegis RAC system today?", sender: 'bot' }
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);

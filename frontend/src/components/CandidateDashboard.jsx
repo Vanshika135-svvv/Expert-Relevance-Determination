@@ -553,7 +553,7 @@ const CandidateDashboard = () => {
                 className="overflow-hidden whitespace-nowrap"
               >
                 <h2 className="text-sm font-black tracking-widest uppercase">
-                  Nexus Access
+                  Aegis Access
                 </h2>
                 <p className="text-[9px] text-blue-500 font-bold tracking-[0.2em] uppercase">
                   Candidate Node
@@ -1065,7 +1065,7 @@ const CandidateDashboard = () => {
               >
                 <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-md">
                   <h2 className="text-xl font-black uppercase tracking-widest text-blue-400 mb-6">
-                    Nexus Appointment Sync
+                    Aegis Appointment Sync
                   </h2>
                   
                   {/* Create New Proposal */}

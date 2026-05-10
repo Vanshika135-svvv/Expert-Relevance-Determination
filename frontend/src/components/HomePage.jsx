@@ -65,7 +65,7 @@ const HomePage = () => {
               <BrainCircuit className="text-cyan-400" size={24} />
             </div>
             <div className="flex flex-col">
-              <span className="text-xl font-black tracking-widest text-white leading-none">NEXUS</span>
+              <span className="text-xl font-black tracking-widest text-white leading-none">Aegis</span>
               <span className="text-[9px] font-bold tracking-[0.3em] text-cyan-400 uppercase leading-none mt-1">RAC System</span>
             </div>
           </Link>
@@ -292,7 +292,7 @@ const HomePage = () => {
             <div className="absolute left-[39px] md:left-[49px] top-4 bottom-4 w-0.5 bg-gradient-to-b from-cyan-500 via-blue-500 to-fuchsia-500 opacity-20" />
             
             {[
-              { step: "01", title: "Create Identity", desc: "Register as a Candidate or Expert in the Nexus Matrix. Initialize your unique skill vector and secure your data vault." },
+              { step: "01", title: "Create Identity", desc: "Register as a Candidate or Expert in the Aegis Matrix. Initialize your unique skill vector and secure your data vault." },
               { step: "02", title: "AI Skill Validation", desc: "Our neural engine audits your profile, ranks your competencies, and determines market-ready relevance." },
               { step: "03", title: "Smart Match Sync", desc: "Initiate the Relevance Engine to dynamically find and schedule the top-ranked expert for your specific interview board." }
             ].map((step, i) => (
@@ -325,7 +325,7 @@ const HomePage = () => {
           <BrainCircuit size={24} className="text-slate-600" />
         </div>
         <p className="text-xs font-black text-slate-500 uppercase tracking-[0.3em] mb-3">
-          &copy; 2026 AEGIS AI | NEXUS RAC SYSTEM
+          &copy; 2026 AEGIS AI | Aegis RAC SYSTEM
         </p>
         <p className="text-[10px] text-slate-600 uppercase tracking-widest font-bold">
           Shri Vaishnav Vidyapeeth Vishwavidyalaya, Indore

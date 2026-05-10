@@ -17,7 +17,7 @@ import {
 /**
  * DashboardLayout Component (MOBILE RESPONSIVE UPGRADE)
  * A highly reusable, fully responsive layout wrapper that perfectly matches 
- * the AEGIS V2 / Nexus RAC aesthetic.
+ * the AEGIS V2 / Aegis RAC aesthetic.
  */
 const DashboardLayout = ({ 
   children, 
@@ -103,7 +103,7 @@ const DashboardLayout = ({
             </div>
           </div>
           <div>
-            <h1 className="font-bold uppercase tracking-widest text-sm leading-tight">Nexus Command</h1>
+            <h1 className="font-bold uppercase tracking-widest text-sm leading-tight">Aegis Command</h1>
             <p className="text-[9px] text-cyan-500 font-bold tracking-[0.2em] uppercase">{userRole}</p>
           </div>
         </div>
@@ -173,7 +173,7 @@ const DashboardLayout = ({
                 className="overflow-hidden whitespace-nowrap"
               >
                 <h2 className="text-sm font-black tracking-widest uppercase">
-                  Nexus Command
+                  Aegis Command
                 </h2>
                 <p className="text-[9px] text-cyan-500 font-bold tracking-[0.2em] uppercase">
                   {userRole}

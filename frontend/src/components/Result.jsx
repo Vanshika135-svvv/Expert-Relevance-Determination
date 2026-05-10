@@ -86,7 +86,7 @@ const Result = () => {
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(30);
     doc.setFont("helvetica", "bold");
-    doc.text("NEXUS RAC VERIFIED", 300, 80, { align: "center" });
+    doc.text("Aegis RAC VERIFIED", 300, 80, { align: "center" });
 
     doc.setFontSize(10);
     doc.setTextColor(148, 163, 184); // Slate-400
@@ -123,7 +123,7 @@ const Result = () => {
     doc.text(`ISSUE DATE: ${resultData.timestamp} | SECURE HASH: RAC-${Math.floor(Math.random() * 100000)}`, 300, 365, { align: "center" });
 
     // Save Action
-    doc.save(`${candidateName.replace(/\s+/g, '_')}_Nexus_Transcript.pdf`);
+    doc.save(`${candidateName.replace(/\s+/g, '_')}_Aegis_Transcript.pdf`);
   };
 
   return (
@@ -146,7 +146,7 @@ const Result = () => {
             </div>
           </div>
           <h1 className="text-lg font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400">
-            Nexus Command
+            Aegis Command
           </h1>
         </div>
         <button 
@@ -219,7 +219,7 @@ const Result = () => {
                     <ShieldCheck size={12} /> Official Transcript
                   </div>
                   
-                  <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter mb-2 text-white">Nexus Verified</h2>
+                  <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter mb-2 text-white">Aegis Verified</h2>
                   <p className="text-sm text-slate-400 font-bold uppercase tracking-[0.2em] mb-10">
                     Node Identity: <span className="text-white">{candidateName}</span>
                   </p>

@@ -489,7 +489,7 @@ const ExpertDashboard = () => {
                 className="overflow-hidden whitespace-nowrap"
               >
                 <h2 className="text-sm font-black tracking-widest uppercase">
-                  Nexus Command
+                  Aegis Command
                 </h2>
                 <p className="text-[9px] text-cyan-500 font-bold tracking-[0.2em] uppercase">
                   Expert Portal
@@ -973,7 +973,7 @@ const ExpertDashboard = () => {
               >
                 <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] backdrop-blur-md">
                   <h2 className="text-xl font-black uppercase tracking-widest text-cyan-400 mb-6">
-                    Nexus Appointment Sync
+                    Aegis Appointment Sync
                   </h2>
                   
                   <div className="space-y-4">

@@ -1,6 +1,6 @@
-# 🚀 Nexus RAC | Expert Relevance Determination System
+# 🚀 Aegis RAC | Expert Relevance Determination System
 
-**Nexus RAC (Relevance-based Automated Coordination)** is an AI-powered neural matching engine designed to bridge the gap between **candidate skillsets and expert domains**.
+**Aegis RAC (Relevance-based Automated Coordination)** is an AI-powered neural matching engine designed to bridge the gap between **candidate skillsets and expert domains**.
 
 Developed by **Team Aegis AI**, this system leverages **Natural Language Processing (NLP)** to ensure that technical evaluations are handled by the most relevant professionals. It is specifically optimized for the **Recruitment and Assessment Centre (RAC)** workflow.
 
@@ -56,7 +56,7 @@ Automated assignment of top-ranked experts to **live interview sessions stored i
 
 # 🧠 The AI Engine (Methodology)
 
-The **brain of Nexus RAC** follows a **4-layer NLP pipeline** to determine expertise relevance.
+The **brain of Aegis RAC** follows a **4-layer NLP pipeline** to determine expertise relevance.
 
 ### 1️⃣ Preprocessing
 Raw input is cleaned by:
