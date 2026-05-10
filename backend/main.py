@@ -47,6 +47,7 @@ if not MONGO_URI:
 
 # Connect to MongoDB Atlas
 client = MongoClient(MONGO_URI)
+# FIXED: Pointing strictly to NexusRAC as per your MongoDB cluster!
 db = client['NexusRAC']
 
 # Define Data Collections
