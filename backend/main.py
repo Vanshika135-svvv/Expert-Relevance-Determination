@@ -47,7 +47,6 @@ if not MONGO_URI:
 
 # Connect to MongoDB Atlas
 client = MongoClient(MONGO_URI)
-# FIXED: Pointing strictly to NexusRAC as per your MongoDB cluster!
 db = client['NexusRAC']
 
 # Define Data Collections
@@ -667,6 +666,58 @@ def chatbot_response():
             reply = "I am the Aegis AI. I currently do not have data on that query. Please ask me about creating an identity, scheduling a sync, or the Aegis RAC system."
 
     return jsonify({"response": reply})
+
+
+# ==========================================
+# TEMPORARY ADMIN SCRIPT: SEED EXPERT ACCOUNTS
+# ==========================================
+@app.route('/api/seed_experts', methods=['GET'])
+def seed_expert_accounts():
+    """Loops through all experts and creates a secure login account for them."""
+    try:
+        # 1. Fetch all experts from the database
+        experts = list(experts_col.find())
+        created_count = 0
+        skipped_count = 0
+        
+        for exp in experts:
+            # 2. Get their name (handling different possible database column names)
+            name = exp.get('ExpertName') or exp.get('name')
+            if not name:
+                continue
+            
+            # 3. Generate a clean, random email based on their name
+            # e.g., "Dr. Sarah Chen" -> "dr.sarah.chen@aegis.edu.in"
+            clean_name = name.lower().replace(' ', '.')
+            email = f"{clean_name}@aegis.edu.in"
+            
+            # 4. Check if they already have an account to prevent duplicates
+            existing = users_col.find_one({"email": email})
+            if existing:
+                skipped_count += 1
+                continue
+            
+            # 5. Hash the universal password "Indore"
+            hashed_password = generate_password_hash("Indore", method='pbkdf2:sha256')
+            
+            # 6. Save them into the secure users collection
+            users_col.insert_one({
+                "username": name,
+                "email": email,
+                "password": hashed_password,
+                "role": "Expert",
+                "skills": exp.get('ExpertSubject') or exp.get('domain', 'N/A'),
+                "createdAt": datetime.utcnow()
+            })
+            created_count += 1
+            
+        return jsonify({
+            "status": "Success", 
+            "message": f"Created {created_count} new Expert accounts! Skipped {skipped_count} existing.",
+            "universal_password": "Indore"
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ==========================================
