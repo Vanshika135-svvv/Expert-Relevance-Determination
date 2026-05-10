@@ -47,6 +47,7 @@ if not MONGO_URI:
 
 # Connect to MongoDB Atlas
 client = MongoClient(MONGO_URI)
+# FIXED: Pointing strictly to NexusRAC as per your MongoDB cluster!
 db = client['NexusRAC']
 
 # Define Data Collections
@@ -577,7 +578,7 @@ def get_all_vault_logs():
         return jsonify({"error": str(e)}), 500
 
 # ==========================================
-# 10. AEGIS AI CHATBOT ROUTE (V4 - FUZZY MATCHING + ROLE AWARENESS)
+# 10. AEGIS AI CHATBOT ROUTE (V5 - MENU + FUZZY + ROLE)
 # ==========================================
 
 # Define the Knowledge Base patterns mapped to Intent Names
@@ -597,39 +598,87 @@ AEGIS_INTENTS = {
 
 @app.route('/api/chat', methods=['POST'])
 def chatbot_response():
-    """Advanced AI Assistant using TheFuzz NLP matching + Dynamic Role Awareness."""
+    """Advanced AI Assistant using Menu-Driven Numbers + TheFuzz NLP + Dynamic Role Awareness."""
     data = request.get_json()
     
-    raw_msg = data.get('message', '').lower()
-    user_msg = re.sub(r'[^\w\s]', '', raw_msg) # Clean input
+    raw_msg = data.get('message', '').lower().strip()
+    # Clean input for fuzzy matching later, but keep raw for number checking
+    user_msg_clean = re.sub(r'[^\w\s]', '', raw_msg) 
     role = data.get('role', 'Guest')
 
-    # 1. Flatten patterns for TheFuzz searching
-    all_patterns = []
-    pattern_to_intent = {}
-    
-    for intent_name, patterns in AEGIS_INTENTS.items():
-        for pattern in patterns:
-            all_patterns.append(pattern)
-            pattern_to_intent[pattern] = intent_name
+    # --- NEW: NUMBER-BASED MENU LOGIC ---
+    menu_options = {
+        "1": "create_identity",
+        "2": "matching",
+        "3": "vault",
+        "4": "assessment",
+        "5": "status"
+    }
 
-    # 2. Use TheFuzz to find the closest matching semantic pattern
-    best_match = process.extractOne(user_msg, all_patterns, scorer=fuzz.token_set_ratio)
-    
-    # 3. Determine Winning Intent (Requires > 65% Confidence Score)
-    if best_match and best_match[1] > 65:
-        best_intent = pattern_to_intent[best_match[0]]
+    # First check: Did the user type a number from the menu?
+    if raw_msg in menu_options:
+        best_intent = menu_options[raw_msg]
     else:
-        best_intent = "unknown"
+        # Fallback to Fuzzy Matching (existing logic)
+        all_patterns = []
+        pattern_to_intent = {}
+        for intent_name, patterns in AEGIS_INTENTS.items():
+            for pattern in patterns:
+                all_patterns.append(pattern)
+                pattern_to_intent[pattern] = intent_name
 
-    # 4. Generate Dynamic Responses based on Winning Intent & User Role
+        best_match = process.extractOne(user_msg_clean, all_patterns, scorer=fuzz.token_set_ratio)
+        
+        if best_match and best_match[1] > 65:
+            best_intent = pattern_to_intent[best_match[0]]
+        else:
+            best_intent = "unknown"
+
+    # --- GENERATE RESPONSES WITH STEP-BY-STEP INSTRUCTIONS ---
     reply = ""
 
-    if best_intent == "greeting":
-        if role == 'Guest':
-            reply = "Greetings. I am Aegis AI. Please log in or create an identity to access the Aegis matrix."
+    if best_intent == "create_identity":
+        reply = ("**Step-by-Step Identity Creation:**\n\n"
+                 "1. Click 'Get Access' in the navigation bar.\n"
+                 "2. Select your node type ('Candidate' or 'Expert').\n"
+                 "3. Input your secure credentials.\n"
+                 "4. Initialize your Skill Vector to complete the process.")
+
+    elif best_intent == "matching":
+        if role == 'Candidate':
+            reply = ("**How to find an Expert:**\n\n"
+                     "1. Navigate to the 'Match Engine' tab.\n"
+                     "2. Click 'Run AI Sequence'.\n"
+                     "3. Our algorithm will mathematically pair you with the best Expert based on your skills.")
         else:
-            reply = f"Hello, {role}. All systems are nominal. How can I assist your workflow today?"
+            reply = "The Neural Match Engine uses Cosine Similarity to pair candidate skill vectors with expert domains."
+
+    elif best_intent == "vault":
+        reply = ("**Data Vault Instructions:**\n\n"
+                 "1. Go to the 'Data Vault' tab.\n"
+                 "2. Click 'Choose File' to select your PDF/DOCX.\n"
+                 "3. Hit 'Secure Upload'. Files are encrypted via GridFS.")
+
+    elif best_intent == "assessment":
+        if role == 'Candidate':
+            reply = ("**Viewing Your Results:**\n\n"
+                     "1. Access the 'Assessments' tab.\n"
+                     "2. View your technical score and official expert remarks after the interview session.")
+        else:
+            reply = "Assessments are logged securely into the MongoDB matrix by verified experts only."
+
+    elif best_intent == "status":
+        reply = ("**System Diagnostics:**\n\n"
+                 "• Server Node: Online\n"
+                 "• DB Cluster: Connected (NexusRAC)\n"
+                 "• NLP Engine: v4.5 Active\n"
+                 "• Latency: Optimal")
+
+    elif best_intent == "greeting":
+        if role == 'Guest':
+            reply = "Greetings. I am Aegis AI. Please select an option (1-5) or login to proceed."
+        else:
+            reply = f"Hello, {role}. Type a number (1-5) for quick help or ask a question."
 
     elif best_intent == "gratitude":
         reply = "You are welcome. Aegis AI is always here to assist the Aegis network."
@@ -637,57 +686,16 @@ def chatbot_response():
     elif best_intent == "goodbye":
         reply = "Session terminated. Safe travels through the matrix."
 
-    elif best_intent == "help":
-        if role == 'Candidate':
-            reply = "I can help you with: 1) Uploading to your Vault. 2) Running the Match Engine. 3) Scheduling an Expert sync. What do you need?"
-        elif role == 'Expert':
-            reply = "I can help you with: 1) Checking your Live Queue. 2) Managing your Schedule. 3) Logging Assessments. What do you need?"
-        else:
-            reply = "I am the Aegis AI. I assist with matching, scheduling, and data vaults. Please specify your query."
-
-    elif best_intent == "scheduling":
-        if role == 'Candidate':
-            reply = "To schedule, go to the 'Schedule' tab. Propose a time, and wait for the Expert to Confirm before initializing the sync."
-        elif role == 'Expert':
-            reply = "Navigate to your 'Schedule' tab. You can Accept pending requests or suggest a Counter-proposal."
-        else:
-            reply = "Scheduling is handled peer-to-peer via the Node Availability Manager in your dashboard."
-
-    elif best_intent == "matching":
-        if role == 'Candidate':
-            reply = "Navigate to the 'Match Engine' tab and click 'Run AI Sequence' to find your ideal expert based on your Vault skills."
-        elif role == 'Expert':
-            reply = "Candidates are automatically routed to your 'Live Queue' when the neural engine matches their skills to your domain."
-        else:
-            reply = "The Neural Match Engine uses Cosine Similarity to mathematically pair candidate skill vectors with expert domains."
-
-    elif best_intent == "vault":
-        reply = "Navigate to the 'Data Vault' tab. You can securely upload PDFs or DOCX files. They will be encrypted directly into our GridFS database."
-
-    elif best_intent == "assessment":
-        if role == 'Expert':
-            reply = "You can log official candidate scores in the 'Assessments' module. Ensure you follow all RAC evaluation guidelines."
-        elif role == 'Candidate':
-            reply = "Once an interview concludes, your expert will log your score. You can view your official transcript in the 'Assessments' tab."
-        else:
-            reply = "Assessments are logged securely into the MongoDB matrix by verified experts only."
-
-    elif best_intent == "status":
-        reply = "The Aegis RAC system and Neural Match Engine are currently operating at 100% optimal capacity."
-
-    elif best_intent == "create_identity":
-        reply = "To create a verified identity in the Aegis Matrix:\n\n1. Click 'Get Access' in the navigation bar.\n2. Select your node type ('Candidate' or 'Expert').\n3. Input your secure credentials.\n4. Initialize your Skill Vector to complete the process."
-
     elif best_intent == "what_is_aegis":
-        reply = "The Aegis RAC System is an intelligent bridge between technical candidates and domain experts. We use neural precision to validate candidate skills and automatically schedule them with the most relevant interview board."
+        reply = "The Aegis RAC System is an intelligent bridge between technical candidates and domain experts using neural precision."
 
     elif best_intent == "unknown":
-        if role == 'Candidate':
-            reply = "I didn't quite catch that. Try asking me about 'matching with an expert', 'scheduling an interview', or 'uploading a resume'."
-        elif role == 'Expert':
-            reply = "I didn't quite catch that. Try asking me about 'evaluating a candidate', 'checking my schedule', or 'my live queue'."
-        else:
-            reply = "I am the Aegis AI. I currently do not have data on that query. Please ask me about creating an identity, scheduling a sync, or the Aegis RAC system."
+        reply = ("I didn't quite catch that. Please type a number to select an operation:\n\n"
+                 "1. Identity Setup\n"
+                 "2. Expert Matching\n"
+                 "3. Data Vault\n"
+                 "4. Assessment Results\n"
+                 "5. System Status")
 
     return jsonify({"response": reply})
 

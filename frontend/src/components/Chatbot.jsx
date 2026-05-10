@@ -5,9 +5,20 @@ import axios from 'axios';
 
 const Chatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Updated Initial Message with Numbered Menu
   const [messages, setMessages] = useState([
-    { text: "Greetings. I am the Aegis AI Assistant. How can I assist you with the Aegis RAC system today?", sender: 'bot' }
+    { 
+      text: "Greetings. I am the Aegis AI Assistant. Type a number to select an operation:\n\n" +
+            "1. Create an Identity\n" +
+            "2. Match with an Expert\n" +
+            "3. Upload to Data Vault\n" +
+            "4. Check Assessment Results\n" +
+            "5. System Status", 
+      sender: 'bot' 
+    }
   ]);
+
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
@@ -17,7 +28,6 @@ const Chatbot = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Scroll when messages change, or when the window is opened
   useEffect(() => {
     if (isOpen) {
       setTimeout(scrollToBottom, 100);
@@ -52,17 +62,14 @@ const Chatbot = () => {
   };
 
   return (
-    // We use a Fragment (<>) so the fixed elements are bound to the viewport, not a parent container
     <>
       <AnimatePresence>
-        {/* 🤖 THE CHAT WINDOW */}
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            // MOBILE RESPONSIVE UPGRADES APPLIED HERE:
             className="fixed bottom-0 right-0 md:bottom-24 md:right-8 w-full md:w-[400px] h-[85vh] md:h-[500px] md:max-h-[75vh] bg-[#0B1021]/95 backdrop-blur-2xl border border-cyan-500/40 rounded-t-[2rem] md:rounded-[2rem] shadow-[0_10px_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col z-[9999]"
           >
             {/* Chat Header */}
@@ -90,18 +97,16 @@ const Chatbot = () => {
             <div className="flex-1 overflow-y-auto p-4 md:p-5 space-y-5 custom-scrollbar bg-black/20">
               {messages.map((msg, index) => (
                 <div key={index} className={`flex gap-3 ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                  {/* Avatar */}
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-lg ${msg.sender === 'user' ? 'bg-cyan-600 text-white' : 'bg-slate-800 border border-cyan-500/30 text-cyan-400'}`}>
                     {msg.sender === 'user' ? <User size={14} /> : <Bot size={14} />}
                   </div>
-                  {/* Message Bubble */}
-                  <div className={`p-3.5 rounded-2xl max-w-[85%] md:max-w-[80%] text-sm leading-relaxed ${msg.sender === 'user' ? 'bg-cyan-600 text-white rounded-tr-none shadow-[0_0_15px_rgba(6,182,212,0.2)]' : 'bg-slate-800/80 text-slate-200 border border-white/5 rounded-tl-none shadow-md'}`}>
+                  {/* whitespace-pre-line added below to support the menu line breaks */}
+                  <div className={`p-3.5 rounded-2xl max-w-[85%] md:max-w-[80%] text-sm leading-relaxed whitespace-pre-line ${msg.sender === 'user' ? 'bg-cyan-600 text-white rounded-tr-none shadow-[0_0_15px_rgba(6,182,212,0.2)]' : 'bg-slate-800/80 text-slate-200 border border-white/5 rounded-tl-none shadow-md'}`}>
                     {msg.text}
                   </div>
                 </div>
               ))}
               
-              {/* Typing Indicator */}
               {isTyping && (
                 <div className="flex gap-3 flex-row">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-slate-800 border border-cyan-500/30 text-cyan-400">
@@ -124,8 +129,7 @@ const Chatbot = () => {
                   type="text" 
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Query Aegis AI..."
-                  // iOS FIX: text-base on mobile prevents auto-zoom, md:text-sm for desktop aesthetics
+                  placeholder="Select 1-5 or type a query..."
                   className="w-full bg-black/40 border border-cyan-500/20 rounded-xl py-3.5 pl-4 pr-14 text-base md:text-sm text-white outline-none focus:border-cyan-500/60 transition-all placeholder:text-slate-600"
                 />
                 <button 
@@ -146,7 +150,6 @@ const Chatbot = () => {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(!isOpen)}
-        // Adjusted positioning to look good on mobile and desktop
         className="fixed bottom-4 right-4 md:bottom-8 md:right-8 w-14 h-14 bg-cyan-500 hover:bg-cyan-400 text-black rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(6,182,212,0.6)] transition-all border-2 border-cyan-300 z-[10000]"
       >
         {isOpen ? <X size={24} /> : <MessageSquare size={24} />}
