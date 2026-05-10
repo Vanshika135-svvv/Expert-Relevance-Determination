@@ -6,7 +6,8 @@ from bson.objectid import ObjectId
 import pandas as pd
 import os
 import io
-import re  # Added for the Advanced Chatbot Intent Engine
+import re  
+from thefuzz import process, fuzz  # Added for Advanced Fuzzy NLP Matching
 from dotenv import load_dotenv
 from datetime import datetime
 from werkzeug.utils import secure_filename
@@ -552,51 +553,52 @@ def get_all_vault_logs():
         return jsonify({"error": str(e)}), 500
 
 # ==========================================
-# AEGIS AI CHATBOT ROUTE (V3 - INTENT SCORING ENGINE)
+# 10. AEGIS AI CHATBOT ROUTE (V4 - FUZZY MATCHING + ROLE AWARENESS)
 # ==========================================
+
+# Define the Knowledge Base patterns mapped to Intent Names
+AEGIS_INTENTS = {
+    "greeting": ['hello', 'hi', 'hey', 'greetings', 'morning', 'howdy'],
+    "gratitude": ['thank you', 'thanks', 'appreciate it', 'awesome', 'great', 'good job'],
+    "goodbye": ['bye', 'goodbye', 'exit', 'quit', 'leave', 'sign off'],
+    "help": ['help', 'support', 'guide', 'assist', 'confused', 'how do i use this', 'what can you do', 'options'],
+    "scheduling": ['schedule an interview', 'book an expert', 'schedule a sync', 'find a match time', 'appointment', 'how do i schedule'],
+    "matching": ['how to match', 'find expert', 'run engine', 'get expert', 'algorithm recommendation', 'start match'],
+    "vault": ['upload resume', 'data vault', 'add document', 'upload pdf', 'how to upload'],
+    "assessment": ['check score', 'view assessment', 'evaluation result', 'grade', 'performance transcript'],
+    "status": ['system status', 'server health', 'is it online', 'capacity', 'is the site down'],
+    "create_identity": ['give me steps to create an identity', 'how do i create an identity', 'how to sign up', 'register account', 'create account', 'new user setup'],
+    "what_is_aegis": ['what is aegis', 'explain the rac system', 'how does this website work', 'what do you do', 'what is this site']
+}
+
 @app.route('/api/chat', methods=['POST'])
 def chatbot_response():
-    """Advanced AI Assistant using Intent Scoring for the Aegis RAC system."""
+    """Advanced AI Assistant using TheFuzz NLP matching + Dynamic Role Awareness."""
     data = request.get_json()
     
-    # Clean the input: lowercase and remove special punctuation for better matching
     raw_msg = data.get('message', '').lower()
-    user_msg = re.sub(r'[^\w\s]', '', raw_msg) 
+    user_msg = re.sub(r'[^\w\s]', '', raw_msg) # Clean input
     role = data.get('role', 'Guest')
 
-    # 1. Define the Neural Intent Matrix (Keywords for each category)
-    intents = {
-        "greeting": ['hello', 'hi', 'hey', 'greetings', 'hrello', 'morning', 'howdy'],
-        "gratitude": ['thank', 'thanks', 'appreciate', 'awesome', 'great'],
-        "goodbye": ['bye', 'goodbye', 'exit', 'quit', 'leave'],
-        "help": ['help', 'support', 'guide', 'assist', 'confused', 'how do i', 'what can you'],
-        "scheduling": ['schedul', 'meeting', 'interview', 'time', 'sync', 'appointment', 'calendar', 'date', 'book'],
-        "matching": ['match', 'engine', 'pair', 'similar', 'find expert', 'get expert', 'algorithm', 'recommend'],
-        "vault": ['upload', 'resume', 'vault', 'file', 'document', 'pdf', 'cv', 'portfolio'],
-        "assessment": ['score', 'assess', 'result', 'evaluat', 'grade', 'feedback', 'performance', 'transcript'],
-        "status": ['status', 'health', 'online', 'system', 'server', 'capacity']
-    }
-
-    # 2. Calculate Intent Scores
-    # We count how many keywords from each category appear in the user's message
-    intent_scores = {intent: 0 for intent in intents}
+    # 1. Flatten patterns for TheFuzz searching
+    all_patterns = []
+    pattern_to_intent = {}
     
-    for intent, keywords in intents.items():
-        for kw in keywords:
-            if kw in user_msg:
-                # Give heavier weight to longer, more specific phrases
-                weight = 2 if len(kw.split()) > 1 else 1 
-                intent_scores[intent] += weight
+    for intent_name, patterns in AEGIS_INTENTS.items():
+        for pattern in patterns:
+            all_patterns.append(pattern)
+            pattern_to_intent[pattern] = intent_name
 
-    # 3. Determine the Winning Intent
-    best_intent = max(intent_scores, key=intent_scores.get)
-    max_score = intent_scores[best_intent]
-
-    # If no keywords matched, default to 'unknown'
-    if max_score == 0:
+    # 2. Use TheFuzz to find the closest matching semantic pattern
+    best_match = process.extractOne(user_msg, all_patterns, scorer=fuzz.token_set_ratio)
+    
+    # 3. Determine Winning Intent (Requires > 65% Confidence Score)
+    if best_match and best_match[1] > 65:
+        best_intent = pattern_to_intent[best_match[0]]
+    else:
         best_intent = "unknown"
 
-    # 4. Generate the Response based on Winning Intent & User Role
+    # 4. Generate Dynamic Responses based on Winning Intent & User Role
     reply = ""
 
     if best_intent == "greeting":
@@ -649,22 +651,25 @@ def chatbot_response():
     elif best_intent == "status":
         reply = "The Aegis RAC system and Neural Match Engine are currently operating at 100% optimal capacity."
 
+    elif best_intent == "create_identity":
+        reply = "To create a verified identity in the Aegis Matrix:\n\n1. Click 'Get Access' in the navigation bar.\n2. Select your node type ('Candidate' or 'Expert').\n3. Input your secure credentials.\n4. Initialize your Skill Vector to complete the process."
+
+    elif best_intent == "what_is_aegis":
+        reply = "The Aegis RAC System is an intelligent bridge between technical candidates and domain experts. We use neural precision to validate candidate skills and automatically schedule them with the most relevant interview board."
+
     elif best_intent == "unknown":
-        # Dynamic Fallback based on Role
         if role == 'Candidate':
             reply = "I didn't quite catch that. Try asking me about 'matching with an expert', 'scheduling an interview', or 'uploading a resume'."
         elif role == 'Expert':
             reply = "I didn't quite catch that. Try asking me about 'evaluating a candidate', 'checking my schedule', or 'my live queue'."
         else:
-            reply = "I am the Aegis AI. I assist with the Aegis RAC matrix. Ask me about scheduling, matching, uploads, or system status."
+            reply = "I am the Aegis AI. I currently do not have data on that query. Please ask me about creating an identity, scheduling a sync, or the Aegis RAC system."
 
     return jsonify({"response": reply})
 
 
 # ==========================================
-# 10. RUN ENGINE
+# 11. RUN ENGINE
 # ==========================================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
-
-    
