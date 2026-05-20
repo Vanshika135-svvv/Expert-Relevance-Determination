@@ -179,7 +179,7 @@ npm run dev
 ---
 
 ### 🎓 Project Guide
-**Ms. Juhi Shrivastava**
+**Prof. Rohit Choubey**
 
 ---
 
@@ -189,4 +189,4 @@ npm run dev
 ---
 
 ### 🤝 Collaboration
-**SVVV Minor Project — CSE (AI-IBM)**
+**SVVV FML Project — CSE (AI-IBM)**
