@@ -5,6 +5,26 @@
 Developed by **Team Aegis AI**, this system leverages **Natural Language Processing (NLP)** to ensure that technical evaluations are handled by the most relevant professionals. It is specifically optimized for the **Recruitment and Assessment Centre (RAC)** workflow.
 
 ---
+---
+# Home Page
+<img width="959" height="415" alt="Image" src="https://github.com/user-attachments/assets/846d8b95-1ba0-4d68-9a38-009b082f961e" />
+---
+# Sign in Page
+<img width="229" height="367" alt="Image" src="https://github.com/user-attachments/assets/7fb6f1b4-8f9c-4a94-8569-de659b945e4b" />
+---
+# Login Page
+<img width="335" height="400" alt="Image" src="https://github.com/user-attachments/assets/d7e0a4d8-8764-4632-a995-58a8d88916d9" />
+---
+# Candidate portal
+<img width="959" height="417" alt="Image" src="https://github.com/user-attachments/assets/33ca3bfc-7635-44e8-b9aa-388d12378a77" />
+---
+# Expert Portal
+<img width="959" height="419" alt="Image" src="https://github.com/user-attachments/assets/f2b67675-b190-414a-bfbc-80afbbe0b340" />
+---
+# Admin Portal
+<img width="959" height="415" alt="Image" src="https://github.com/user-attachments/assets/20418f35-7c66-4ade-b3e2-9a91fb2adf8f" />
+---
+---
 
 # 💎 Key Features
 
